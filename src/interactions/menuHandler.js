@@ -383,123 +383,166 @@ class MenuHandler {
     }
 
     async showPopularAnime(interaction) {
-        await interaction.deferUpdate();
-        const results = await tmdbService.getPopular('tv');
-        const items = this._filterAnime(results.results).slice(0, 20).map(item => ({
-            ...item,
-            media_type: 'tv'
-        }));
+        try {
+            await interaction.deferUpdate();
+            const results = await tmdbService.getPopular('tv');
+            const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
+                ...item,
+                media_type: 'tv'
+            }));
 
-        const replyInteraction = {
-            ...interaction,
-            deferred: true,
-            editReply: interaction.editReply.bind(interaction)
-        };
-
-        await paginator.paginateWithSelection(
-            replyInteraction,
-            items,
-            {
-                itemsPerPage: 2,
-                customId: 'popular_anime',
-                title: '⭐ Popular Anime'
+            if (!items.length) {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.warning)
+                    .setTitle('🍥 No Anime Found')
+                    .setDescription('Could not load popular anime right now. Try again later.')
+                    .setTimestamp();
+                const backRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('back_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+                );
+                const msg = await interaction.editReply({ embeds: [embed], components: [backRow] });
+                messageCleanup.scheduleDelete(msg);
+                return;
             }
-        );
+
+            const replyInteraction = {
+                ...interaction,
+                deferred: true,
+                editReply: interaction.editReply.bind(interaction)
+            };
+
+            await paginator.paginateWithSelection(
+                replyInteraction,
+                items,
+                {
+                    itemsPerPage: 2,
+                    customId: 'popular_anime',
+                    title: '⭐ Popular Anime'
+                }
+            );
+        } catch (error) {
+            console.error('Popular anime error:', error);
+            await this._sendError(interaction, 'Failed to load popular anime.');
+        }
     }
 
     async showTrendingAnime(interaction) {
-        await interaction.deferUpdate();
-        const results = await tmdbService.getTrending('tv', 'week');
-        const items = this._filterAnime(results.results).slice(0, 20).map(item => ({
-            ...item,
-            media_type: 'tv'
-        }));
+        try {
+            await interaction.deferUpdate();
+            const results = await tmdbService.getTrending('tv', 'week');
+            const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
+                ...item,
+                media_type: 'tv'
+            }));
 
-        const replyInteraction = {
-            ...interaction,
-            deferred: true,
-            editReply: interaction.editReply.bind(interaction)
-        };
-
-        await paginator.paginateWithSelection(
-            replyInteraction,
-            items,
-            {
-                itemsPerPage: 2,
-                customId: 'trending_anime',
-                title: '🔥 Trending Anime'
+            if (!items.length) {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.warning)
+                    .setTitle('🍥 No Anime Found')
+                    .setDescription('Could not load trending anime right now. Try again later.')
+                    .setTimestamp();
+                const backRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('back_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+                );
+                const msg = await interaction.editReply({ embeds: [embed], components: [backRow] });
+                messageCleanup.scheduleDelete(msg);
+                return;
             }
-        );
+
+            const replyInteraction = {
+                ...interaction,
+                deferred: true,
+                editReply: interaction.editReply.bind(interaction)
+            };
+
+            await paginator.paginateWithSelection(
+                replyInteraction,
+                items,
+                {
+                    itemsPerPage: 2,
+                    customId: 'trending_anime',
+                    title: '🔥 Trending Anime'
+                }
+            );
+        } catch (error) {
+            console.error('Trending anime error:', error);
+            await this._sendError(interaction, 'Failed to load trending anime.');
+        }
     }
 
     async handleSearchSubmit(interaction) {
-        await interaction.deferReply();
-        
-        const query = interaction.fields.getTextInputValue('search_query');
-        const type = interaction.customId.replace('search_modal_', '');
+        try {
+            await interaction.deferReply();
+            
+            const query = interaction.fields.getTextInputValue('search_query');
+            const type = interaction.customId.replace('search_modal_', '');
 
-        let results;
-        let items;
-        
-        if (type === 'movie') {
-            results = await tmdbService.searchMovies(query);
-            // Add media_type for movie-only searches
-            items = results.results.slice(0, 20).map(item => ({
-                ...item,
-                media_type: 'movie'
-            }));
-        } else if (type === 'tv') {
-            results = await tmdbService.searchTVShows(query);
-            // Add media_type for TV-only searches
-            items = results.results.slice(0, 20).map(item => ({
-                ...item,
-                media_type: 'tv'
-            }));
-        } else if (type === 'anime') {
-            results = await tmdbService.searchTVShows(query);
-            const filtered = this._filterAnime(results.results);
-            items = filtered.slice(0, 20).map(item => ({
-                ...item,
-                media_type: 'tv'
-            }));
-        } else {
-            results = await tmdbService.searchMulti(query);
-            // Multi search already includes media_type, but filter out non-movie/tv results
-            items = results.results
-                .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
-                .slice(0, 20);
-        }
-
-        if (!items || items.length === 0) {
-            const embed = new EmbedBuilder()
-                .setColor(config.embed.colors.warning)
-                .setTitle('🔍 No Results')
-                .setDescription(`No results found for "${query}". Try a different search term.`)
-                .setTimestamp();
-
-            const backRow = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('back_main')
-                        .setLabel('Back to Menu')
-                        .setEmoji('⬅️')
-                        .setStyle(ButtonStyle.Secondary)
-                );
-
-            const noResultsMsg = await interaction.editReply({ embeds: [embed], components: [backRow] });
-            messageCleanup.scheduleDelete(noResultsMsg);
-            return;
-        }
-
-        await paginator.paginateWithSelection(
-            interaction,
-            items,
-            {
-                itemsPerPage: 2,
-                customId: 'search',
-                title: `🔍 Search: "${query}"`
+            let results;
+            let items;
+            
+            if (type === 'movie') {
+                results = await tmdbService.searchMovies(query);
+                // Add media_type for movie-only searches
+                items = (results?.results || []).slice(0, 20).map(item => ({
+                    ...item,
+                    media_type: 'movie'
+                }));
+            } else if (type === 'tv') {
+                results = await tmdbService.searchTVShows(query);
+                // Add media_type for TV-only searches
+                items = (results?.results || []).slice(0, 20).map(item => ({
+                    ...item,
+                    media_type: 'tv'
+                }));
+            } else if (type === 'anime') {
+                results = await tmdbService.searchTVShows(query);
+                const filtered = this._filterAnime(results?.results || []);
+                items = filtered.slice(0, 20).map(item => ({
+                    ...item,
+                    media_type: 'tv'
+                }));
+            } else {
+                results = await tmdbService.searchMulti(query);
+                // Multi search already includes media_type, but filter out non-movie/tv results
+                items = (results?.results || [])
+                    .filter(item => item.media_type === 'movie' || item.media_type === 'tv')
+                    .slice(0, 20);
             }
-        );
+
+            if (!items || items.length === 0) {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.warning)
+                    .setTitle('🔍 No Results')
+                    .setDescription(`No results found for "${query}". Try a different search term.`)
+                    .setTimestamp();
+
+                const backRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('back_main')
+                            .setLabel('Back to Menu')
+                            .setEmoji('⬅️')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+
+                const noResultsMsg = await interaction.editReply({ embeds: [embed], components: [backRow] });
+                messageCleanup.scheduleDelete(noResultsMsg);
+                return;
+            }
+
+            await paginator.paginateWithSelection(
+                interaction,
+                items,
+                {
+                    itemsPerPage: 2,
+                    customId: 'search',
+                    title: `🔍 Search: "${query}"`
+                }
+            );
+        } catch (error) {
+            console.error('Search submit error:', error);
+            await this._sendError(interaction, 'Failed to load search results.');
+        }
     }
 
     async showWatchlist(interaction) {
@@ -632,6 +675,29 @@ class MenuHandler {
             const hasAnimationName = Array.isArray(genres) && genres.some(g => (g.name || '').toLowerCase() === 'animation');
             return hasJP || hasAnimationId || hasAnimationName;
         });
+    }
+
+    /**
+     * Send a generic error message
+     * @private
+     */
+    async _sendError(interaction, message) {
+        const embed = new EmbedBuilder()
+            .setColor(config.embed.colors.error)
+            .setTitle('❌ Error')
+            .setDescription(message || 'Something went wrong.')
+            .setTimestamp();
+
+        try {
+            if (interaction.deferred || interaction.replied) {
+                const msg = await interaction.editReply({ embeds: [embed], components: [] });
+                messageCleanup.scheduleDelete(msg);
+            } else {
+                await interaction.reply({ embeds: [embed], components: [], ephemeral: true });
+            }
+        } catch (err) {
+            console.error('Error sending error embed:', err);
+        }
     }
 }
 
