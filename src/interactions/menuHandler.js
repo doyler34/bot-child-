@@ -34,6 +34,8 @@ class MenuHandler {
                 await this.showTrendingShows(interaction);
             } else if (customId === 'shows_search') {
                 await this.showSearchModal(interaction, 'tv');
+            } else if (customId === 'shows_anime') {
+                await this.showAnime(interaction);
             } else if (customId === 'menu_watchlist') {
                 await this.showWatchlist(interaction);
             } else if (customId === 'menu_continue') {
@@ -189,6 +191,11 @@ class MenuHandler {
                     .setLabel('Trending')
                     .setEmoji('🔥')
                     .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('shows_anime')
+                    .setLabel('Anime')
+                    .setEmoji('🍥')
+                    .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('shows_search')
                     .setLabel('Search Shows')
@@ -504,6 +511,33 @@ class MenuHandler {
                 itemsPerPage: 2,
                 customId: 'continue',
                 title: `▶️ Continue Watching (${continueWatching.length} items)`
+            }
+        );
+    }
+
+    async showAnime(interaction) {
+        await interaction.deferUpdate();
+
+        // Simple anime feed: search TV with keyword "anime"
+        const results = await tmdbService.searchTVShows('anime');
+        const items = results.results.slice(0, 20).map(item => ({
+            ...item,
+            media_type: 'tv'
+        }));
+
+        const replyInteraction = {
+            ...interaction,
+            deferred: true,
+            editReply: interaction.editReply.bind(interaction)
+        };
+
+        await paginator.paginateWithSelection(
+            replyInteraction,
+            items,
+            {
+                itemsPerPage: 2,
+                customId: 'anime_tv',
+                title: '🍥 Anime (TV)'
             }
         );
     }
