@@ -385,7 +385,7 @@ class MenuHandler {
 
     async showPopularAnime(interaction) {
         try {
-            await interaction.deferUpdate();
+            await interaction.deferReply({ ephemeral: true });
             const results = await jikanService.topAnime(1);
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
@@ -427,7 +427,7 @@ class MenuHandler {
 
     async showTrendingAnime(interaction) {
         try {
-            await interaction.deferUpdate();
+            await interaction.deferReply({ ephemeral: true });
             const results = await jikanService.trendingAnime(1);
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
