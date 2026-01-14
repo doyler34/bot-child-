@@ -13,6 +13,117 @@ function respondJson(res, status, payload) {
     res.end(JSON.stringify(payload));
 }
 
+function respondHtml(res, streamUrl) {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Streaming Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+        #player-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        #player {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        /* Enable fullscreen on mobile */
+        #player-container:-webkit-full-screen {
+            width: 100%;
+            height: 100%;
+        }
+        #player-container:-moz-full-screen {
+            width: 100%;
+            height: 100%;
+        }
+        #player-container:-ms-fullscreen {
+            width: 100%;
+            height: 100%;
+        }
+        #player-container:fullscreen {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="player-container">
+        <iframe 
+            id="player"
+            src="${streamUrl.replace(/"/g, '&quot;')}"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture; web-share"
+            allowfullscreen
+            webkitallowfullscreen
+            mozallowfullscreen
+            msallowfullscreen
+            scrolling="no"
+            frameborder="0"
+            referrerpolicy="no-referrer-when-downgrade">
+        </iframe>
+    </div>
+    <script>
+        // Enable fullscreen API support
+        const container = document.getElementById('player-container');
+        const player = document.getElementById('player');
+        
+        // Try to enter fullscreen on load (may require user interaction)
+        function requestFullscreen() {
+            if (container.requestFullscreen) {
+                container.requestFullscreen().catch(() => {});
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            } else if (container.mozRequestFullScreen) {
+                container.mozRequestFullScreen();
+            } else if (container.msRequestFullscreen) {
+                container.msRequestFullscreen();
+            }
+        }
+        
+        // Listen for fullscreen requests from iframe
+        window.addEventListener('message', function(event) {
+            if (event.data === 'requestFullscreen' || event.data.type === 'requestFullscreen') {
+                requestFullscreen();
+            }
+        });
+        
+        // Auto-resize iframe to fill container
+        function resizePlayer() {
+            player.style.width = '100%';
+            player.style.height = '100%';
+        }
+        
+        window.addEventListener('resize', resizePlayer);
+        resizePlayer();
+    </script>
+</body>
+</html>`;
+    
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.end(html);
+}
+
 async function handleProxyRequest(req, res) {
     const url = new URL(req.url, `http://localhost:${keys.proxy?.port || 3001}`);
     const segments = url.pathname.split('/').filter(Boolean); // [proxy, provider, type, ...]
@@ -52,13 +163,16 @@ async function handleProxyRequest(req, res) {
             return;
         }
 
-        const format = url.searchParams.get('format') || 'redirect';
+        const format = url.searchParams.get('format') || 'html';
         if (format === 'json') {
             respondJson(res, 200, { url: streamUrl });
-        } else {
+        } else if (format === 'redirect') {
             res.statusCode = 302;
             res.setHeader('Location', streamUrl);
             res.end();
+        } else {
+            // Default: serve HTML wrapper for fullscreen support
+            respondHtml(res, streamUrl);
         }
     } catch (error) {
         console.error('Proxy error:', error.message);
