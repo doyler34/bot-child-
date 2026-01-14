@@ -27,13 +27,14 @@ module.exports = {
                     '• ▶️ Continue Watching: auto-tracks viewed items; clear via the Continue menu.',
                     '',
                     '**Providers & proxy**',
-                    '• Multiple providers are offered; if one fails, try another.',
+                    '• Providers: VidSrc and VidSrc Me (kept for lowest ads).',
+                    '• If a provider fails, try the other provider.',
                     '• Links may be routed through a lightweight proxy to unwrap embeds. If a provider cannot be resolved, the bot falls back to a direct embed link.',
                     '',
                     '**Tips**',
                     '• If a menu expires, run `/watch` again.',
                     '• Use the Back buttons to return to menus at any time.',
-                    '• Make sure Discord link buttons open in your browser if in-app blocks occur.'
+                    '• For fewer ads, open links in your browser with an ad blocker; avoid the in-app browser if possible.'
                 ].join('\n'))
                 .setFooter({ text: 'ZipxMovies • Powered by TMDB' })
                 .setTimestamp();

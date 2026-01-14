@@ -25,13 +25,6 @@ class VidSrcService {
                 slug: 'vidsrcme',
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
-            },
-            // Keep Pro last; it may resolve to embed.su which can fail on some hosts
-            {
-                name: 'VidSrc Pro',
-                slug: 'vidsrcpro',
-                baseUrl: 'https://vidsrc.pro/embed',
-                emoji: '⭐'
             }
         ];
     }
