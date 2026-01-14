@@ -385,7 +385,8 @@ class MenuHandler {
     async showPopularAnime(interaction) {
         try {
             await interaction.deferUpdate();
-            const results = await tmdbService.getPopular('tv');
+            // TMDB popular TV often lacks anime; use a keyword search fallback
+            const results = await tmdbService.searchTVShows('anime');
             const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
                 ...item,
                 media_type: 'tv'
@@ -429,7 +430,8 @@ class MenuHandler {
     async showTrendingAnime(interaction) {
         try {
             await interaction.deferUpdate();
-            const results = await tmdbService.getTrending('tv', 'week');
+            // Use keyword search as a trending-like fallback for anime
+            const results = await tmdbService.searchTVShows('anime trending');
             const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
                 ...item,
                 media_type: 'tv'
