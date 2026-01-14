@@ -212,7 +212,9 @@ class Paginator {
             itemsPerPage = 2,
             timeout = config.pagination.timeout,
             customId = 'select',
-            title = 'Results'
+            title = 'Results',
+            backButtonId = null, // Optional back button custom ID
+            backButtonLabel = 'Back'
         } = options;
 
         if (!items || items.length === 0) {
@@ -297,6 +299,16 @@ class Paginator {
             this.createPaginationButtons(currentPage, totalPages, customId)
         ];
 
+        // Add back button if specified
+        if (backButtonId) {
+            const backButton = new ButtonBuilder()
+                .setCustomId(backButtonId)
+                .setLabel(backButtonLabel)
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️');
+            components.push(new ActionRowBuilder().addComponents(backButton));
+        }
+
         const message = await interaction.editReply({
             embeds: createPosterEmbeds(),
             components
@@ -380,17 +392,29 @@ class Paginator {
                 return;
             }
 
-            // Handle back button
+            // Handle back button (from detail view back to list)
             if (i.customId === `${customId}_back`) {
                 showingDetail = false;
                 selectedItem = null;
                 try {
+                    const updatedComponents = [
+                        ...createNumberButtons(),
+                        this.createPaginationButtons(currentPage, totalPages, customId)
+                    ];
+                    
+                    // Re-add back button if specified
+                    if (backButtonId) {
+                        const backButton = new ButtonBuilder()
+                            .setCustomId(backButtonId)
+                            .setLabel(backButtonLabel)
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('⬅️');
+                        updatedComponents.push(new ActionRowBuilder().addComponents(backButton));
+                    }
+                    
                     await i.update({
                         embeds: createPosterEmbeds(),
-                        components: [
-                            ...createNumberButtons(),
-                            this.createPaginationButtons(currentPage, totalPages, customId)
-                        ]
+                        components: updatedComponents
                     });
                 } catch (err) {
                     if (err.code === 10062) {
@@ -422,12 +446,24 @@ class Paginator {
             }
 
             try {
+                const updatedComponents = [
+                    ...createNumberButtons(),
+                    this.createPaginationButtons(currentPage, totalPages, customId)
+                ];
+                
+                // Re-add back button if specified
+                if (backButtonId) {
+                    const backButton = new ButtonBuilder()
+                        .setCustomId(backButtonId)
+                        .setLabel(backButtonLabel)
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⬅️');
+                    updatedComponents.push(new ActionRowBuilder().addComponents(backButton));
+                }
+                
                 await i.update({
                     embeds: createPosterEmbeds(),
-                    components: [
-                        ...createNumberButtons(),
-                        this.createPaginationButtons(currentPage, totalPages, customId)
-                    ]
+                    components: updatedComponents
                 });
             } catch (err) {
                 if (err.code === 10062) {

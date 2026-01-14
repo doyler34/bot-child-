@@ -195,10 +195,10 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        // Handle back_to_results button
+        // Handle back_to_results button (back to anime menu from anime details)
         if (customId === 'back_to_results') {
             const menuHandler = require('./interactions/menuHandler');
-            await menuHandler.showMainMenu(interaction);
+            await menuHandler.showAnimeMenu(interaction);
             return;
         }
 

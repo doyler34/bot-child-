@@ -439,7 +439,9 @@ class MenuHandler {
                 {
                     itemsPerPage: 2,
                     customId: 'popular_anime',
-                    title: '⭐ Popular Anime'
+                    title: '⭐ Popular Anime',
+                    backButtonId: 'menu_anime',
+                    backButtonLabel: 'Back to Anime Menu'
                 }
             );
             console.log('[MenuHandler] Paginator completed');
@@ -518,7 +520,9 @@ class MenuHandler {
                 {
                     itemsPerPage: 2,
                     customId: 'trending_anime',
-                    title: '🔥 Trending Anime'
+                    title: '🔥 Trending Anime',
+                    backButtonId: 'menu_anime',
+                    backButtonLabel: 'Back to Anime Menu'
                 }
             );
             console.log('[MenuHandler] Paginator completed');
