@@ -593,13 +593,16 @@ class DetailsHandler {
                 year: anime?.aired?.from ? new Date(anime.aired.from).getFullYear() : undefined
             });
 
-            const streamButtons = streamLinks.map(link =>
-                new ButtonBuilder()
-                    .setLabel(link.name)
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(link.url)
-                    .setEmoji(link.emoji)
-            );
+            // Filter out any null/failed links and create buttons
+            const streamButtons = streamLinks
+                .filter(link => link && link.url)
+                .map(link =>
+                    new ButtonBuilder()
+                        .setLabel(link.name)
+                        .setStyle(ButtonStyle.Link)
+                        .setURL(link.url)
+                        .setEmoji(link.emoji)
+                );
 
             // Add back button to episode selector
             const backButton = new ButtonBuilder()
@@ -608,11 +611,26 @@ class DetailsHandler {
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
 
+            // Build rows: max 5 buttons per row
             const rows = [];
-            if (streamButtons.length) {
-                rows.push(new ActionRowBuilder().addComponents(...streamButtons));
+            if (streamButtons.length > 0) {
+                // Split stream buttons into chunks of 5
+                for (let i = 0; i < streamButtons.length; i += 5) {
+                    const chunk = streamButtons.slice(i, i + 5);
+                    if (chunk.length > 0) {
+                        rows.push(new ActionRowBuilder().addComponents(...chunk));
+                    }
+                }
             }
-            rows.push(new ActionRowBuilder().addComponents(backButton));
+            
+            // Add back button in its own row (or with last stream buttons if there's space)
+            if (rows.length > 0 && rows[rows.length - 1].components.length < 5) {
+                // Add to last row if it has space
+                rows[rows.length - 1].addComponents(backButton);
+            } else {
+                // Create new row for back button
+                rows.push(new ActionRowBuilder().addComponents(backButton));
+            }
 
             const message = await interaction.editReply({
                 embeds: [embed],
