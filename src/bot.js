@@ -276,30 +276,43 @@ client.on('interactionCreate', async (interaction) => {
         // Handle watchlist toggle buttons
         if (customId.startsWith('watchlist_toggle_')) {
             const parts = customId.split('_');
-            const mediaType = parts[2]; // 'movie' or 'tv'
-            const tmdbId = parseInt(parts[3]);
+            const mediaType = parts[2]; // 'movie', 'tv', or 'anime'
+            const id = parseInt(parts[3]); // TMDB ID or MAL ID
             
             const watchlistService = require('./database/watchlist.service');
             const tmdbService = require('./services/tmdb.service');
+            const jikanService = require('./services/jikan.service');
             const userId = interaction.user.id;
 
             try {
-                const isInWatchlist = watchlistService.isInWatchlist(userId, tmdbId, mediaType);
+                const isInWatchlist = watchlistService.isInWatchlist(userId, id, mediaType);
                 
                 if (isInWatchlist) {
                     // Remove from watchlist
-                    watchlistService.removeFromWatchlist(userId, tmdbId, mediaType);
+                    watchlistService.removeFromWatchlist(userId, id, mediaType);
                     await interaction.reply({
                         content: '✅ Removed from your watchlist!',
                         flags: 64 // Ephemeral flag
                     });
                 } else {
                     // Add to watchlist
-                    const item = mediaType === 'movie' 
-                        ? await tmdbService.getMovieDetails(tmdbId)
-                        : await tmdbService.getTVShowDetails(tmdbId);
+                    let item;
+                    if (mediaType === 'anime') {
+                        // Fetch anime from Jikan
+                        item = await jikanService.getAnimeById(id);
+                        item.mal_id = id;
+                        item.media_type = 'anime';
+                        item.poster_path = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url;
+                        item.title = item.title_english || item.title;
+                        item.aired = item.aired?.from;
+                    } else {
+                        // Fetch movie/TV from TMDB
+                        item = mediaType === 'movie' 
+                            ? await tmdbService.getMovieDetails(id)
+                            : await tmdbService.getTVShowDetails(id);
+                        item.media_type = mediaType;
+                    }
                     
-                    item.media_type = mediaType;
                     watchlistService.addToWatchlist(userId, item);
                     
                     await interaction.reply({

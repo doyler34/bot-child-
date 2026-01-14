@@ -23,7 +23,7 @@ class WatchlistService {
     /**
      * Add item to user's watchlist
      * @param {string} userId - Discord user ID
-     * @param {object} item - Media item {id, media_type, title, poster_path, release_date, rating}
+     * @param {object} item - Media item {id, mal_id, media_type, title, poster_path, release_date, rating}
      * @returns {boolean} - Success status
      */
     addToWatchlist(userId, item) {
@@ -32,18 +32,19 @@ class WatchlistService {
         try {
             const stmt = this.db.prepare(`
                 INSERT OR IGNORE INTO watchlist 
-                (user_id, tmdb_id, media_type, title, poster_path, release_date, rating)
+                (user_id, tmdb_id, mal_id, media_type, title, poster_path, release_date, rating)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             `);
 
             const result = stmt.run(
                 userId,
-                item.id,
+                item.id || null,
+                item.mal_id || null,
                 item.media_type,
                 item.title || item.name,
                 item.poster_path,
-                item.release_date || item.first_air_date,
-                item.vote_average
+                item.release_date || item.first_air_date || item.aired,
+                item.vote_average || item.score
             );
 
             return result.changes > 0;
@@ -56,20 +57,22 @@ class WatchlistService {
     /**
      * Remove item from user's watchlist
      * @param {string} userId - Discord user ID
-     * @param {number} tmdbId - TMDB ID
-     * @param {string} mediaType - 'movie' or 'tv'
+     * @param {number} id - TMDB ID or MAL ID
+     * @param {string} mediaType - 'movie', 'tv', or 'anime'
      * @returns {boolean} - Success status
      */
-    removeFromWatchlist(userId, tmdbId, mediaType) {
+    removeFromWatchlist(userId, id, mediaType) {
         this._ensureDb();
 
         try {
+            // For anime, use mal_id; for others, use tmdb_id
+            const idColumn = mediaType === 'anime' ? 'mal_id' : 'tmdb_id';
             const stmt = this.db.prepare(`
                 DELETE FROM watchlist 
-                WHERE user_id = ? AND tmdb_id = ? AND media_type = ?
+                WHERE user_id = ? AND ${idColumn} = ? AND media_type = ?
             `);
 
-            const result = stmt.run(userId, tmdbId, mediaType);
+            const result = stmt.run(userId, id, mediaType);
             return result.changes > 0;
         } catch (error) {
             console.error('Error removing from watchlist:', error);
@@ -105,20 +108,22 @@ class WatchlistService {
     /**
      * Check if item is in user's watchlist
      * @param {string} userId - Discord user ID
-     * @param {number} tmdbId - TMDB ID
-     * @param {string} mediaType - 'movie' or 'tv'
+     * @param {number} id - TMDB ID or MAL ID
+     * @param {string} mediaType - 'movie', 'tv', or 'anime'
      * @returns {boolean} - Whether item is in watchlist
      */
-    isInWatchlist(userId, tmdbId, mediaType) {
+    isInWatchlist(userId, id, mediaType) {
         this._ensureDb();
 
         try {
+            // For anime, use mal_id; for others, use tmdb_id
+            const idColumn = mediaType === 'anime' ? 'mal_id' : 'tmdb_id';
             const stmt = this.db.prepare(`
                 SELECT 1 FROM watchlist 
-                WHERE user_id = ? AND tmdb_id = ? AND media_type = ?
+                WHERE user_id = ? AND ${idColumn} = ? AND media_type = ?
             `);
 
-            return stmt.get(userId, tmdbId, mediaType) !== undefined;
+            return stmt.get(userId, id, mediaType) !== undefined;
         } catch (error) {
             console.error('Error checking watchlist:', error);
             return false;

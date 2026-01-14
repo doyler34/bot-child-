@@ -734,6 +734,16 @@ class DetailsHandler {
                         .setEmoji(link.emoji)
                 );
 
+            // Check watchlist status
+            const inWatchlist = watchlistService.isInWatchlist(interaction.user.id, malId, 'anime');
+
+            // Add watchlist button
+            const watchlistButton = new ButtonBuilder()
+                .setCustomId(`watchlist_toggle_anime_${malId}`)
+                .setLabel(inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist')
+                .setEmoji(inWatchlist ? '✅' : '⭐')
+                .setStyle(inWatchlist ? ButtonStyle.Success : ButtonStyle.Secondary);
+
             // Add back button to episode selector
             const backButton = new ButtonBuilder()
                 .setCustomId(`back_to_anime_eps_${malId}`)
@@ -753,14 +763,9 @@ class DetailsHandler {
                 }
             }
             
-            // Add back button in its own row (or with last stream buttons if there's space)
-            if (rows.length > 0 && rows[rows.length - 1].components.length < 5) {
-                // Add to last row if it has space
-                rows[rows.length - 1].addComponents(backButton);
-            } else {
-                // Create new row for back button
-                rows.push(new ActionRowBuilder().addComponents(backButton));
-            }
+            // Add navigation buttons (watchlist + back) in their own row
+            const navRow = new ActionRowBuilder().addComponents(watchlistButton, backButton);
+            rows.push(navRow);
 
             const message = await interaction.editReply({
                 embeds: [embed],
