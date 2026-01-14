@@ -383,51 +383,63 @@ class DetailsHandler {
                 });
             }
             
-            // Fetch ALL related anime (sequels, prequels, side stories, etc.)
-            const sequelPromises = [];
-            const validRelations = ['Sequel', 'Prequel', 'Side story', 'Alternative version', 'Alternative setting'];
+            // Recursively fetch ALL sequels (not just direct sequels)
+            const allSequels = [];
+            const seenIds = new Set([malId]); // Track IDs to avoid duplicates
             
-            console.log(`[Anime] Found ${relations.length} total relations for ${anime.title}`);
-            relations.forEach(rel => {
-                console.log(`[Anime] Relation type: ${rel.relation}, entries: ${rel.entry?.length || 0}`);
+            const fetchSequelsRecursive = async (currentAnime, depth = 0) => {
+                const relations = currentAnime.relations || [];
+                const sequelPromises = [];
                 
-                if (validRelations.includes(rel.relation)) {
-                    const entries = rel.entry || [];
-                    entries.forEach(entry => {
-                        if (entry.type === 'anime' && entry.mal_id) {
-                            console.log(`[Anime] Fetching ${rel.relation}: ${entry.name} (MAL ID: ${entry.mal_id})`);
-                            sequelPromises.push(
-                                jikanService.getAnimeById(entry.mal_id)
-                                    .then(sequelAnime => ({
-                                        malId: entry.mal_id,
-                                        name: sequelAnime.title || entry.name,
-                                        episodes: sequelAnime.episodes || 1,
-                                        relation: rel.relation
-                                    }))
-                                    .catch(err => {
-                                        console.warn(`[Anime] Failed to fetch ${rel.relation} ${entry.mal_id}:`, err.message);
-                                        return null;
-                                    })
-                            );
-                        }
-                    });
-                }
-            });
-            
-            console.log(`[Anime] Fetching ${sequelPromises.length} related anime...`);
-            
-            // Wait for all related anime data
-            if (sequelPromises.length > 0) {
+                console.log(`[Anime] ${' '.repeat(depth * 2)}Checking ${currentAnime.title} (MAL ${currentAnime.mal_id}) for sequels...`);
+                
+                relations.forEach(rel => {
+                    if (rel.relation === 'Sequel') {
+                        const entries = rel.entry || [];
+                        console.log(`[Anime] ${' '.repeat(depth * 2)}Found ${entries.length} sequel entries`);
+                        entries.forEach(entry => {
+                            console.log(`[Anime] ${' '.repeat(depth * 2)}  - ${entry.name} (MAL ${entry.mal_id}, type: ${entry.type})`);
+                            if (entry.type === 'anime' && entry.mal_id && !seenIds.has(entry.mal_id)) {
+                                seenIds.add(entry.mal_id);
+                                console.log(`[Anime] ${' '.repeat(depth * 2)}    ✓ Will fetch this sequel`);
+                                sequelPromises.push(
+                                    jikanService.getAnimeById(entry.mal_id)
+                                        .catch(err => {
+                                            console.warn(`[Anime] Failed to fetch sequel ${entry.mal_id}:`, err.message);
+                                            return null;
+                                        })
+                                );
+                            } else {
+                                console.log(`[Anime] ${' '.repeat(depth * 2)}    ✗ Skipped (already seen or not anime)`);
+                            }
+                        });
+                    }
+                });
+                
                 const sequels = (await Promise.all(sequelPromises)).filter(Boolean);
-                console.log(`[Anime] Successfully fetched ${sequels.length} related anime`);
+                console.log(`[Anime] ${' '.repeat(depth * 2)}Successfully fetched ${sequels.length} sequels`);
                 
-                // Add all related seasons with their part breakdowns
-                sequels.forEach(sequel => {
-                    // Choose emoji based on relation type
-                    const emoji = sequel.relation === 'Sequel' ? '▶️' : 
-                                 sequel.relation === 'Prequel' ? '◀️' : 
-                                 sequel.relation === 'Side story' ? '🔗' : '📺';
+                // Add sequels to our list
+                for (const sequel of sequels) {
+                    console.log(`[Anime] ${' '.repeat(depth * 2)}Adding sequel: ${sequel.title} (${sequel.episodes} eps)`);
+                    allSequels.push({
+                        malId: sequel.mal_id,
+                        name: sequel.title,
+                        episodes: sequel.episodes || 1
+                    });
                     
+                    // Recursively fetch sequels of this sequel
+                    await fetchSequelsRecursive(sequel, depth + 1);
+                }
+            };
+            
+            console.log(`[Anime] ===== Starting recursive sequel fetch for ${anime.title} =====`);
+            await fetchSequelsRecursive(anime, 0);
+            console.log(`[Anime] ===== Found ${allSequels.length} total sequels recursively =====`);
+            
+            // Add all sequels with their part breakdowns
+            if (allSequels.length > 0) {
+                allSequels.forEach(sequel => {
                     if (sequel.episodes > 24) {
                         const episodesPerPart = 24;
                         const numParts = Math.ceil(sequel.episodes / episodesPerPart);
@@ -437,9 +449,9 @@ class DetailsHandler {
                             const endEp = Math.min(p * episodesPerPart, sequel.episodes);
                             allSeasons.push({
                                 label: `${sequel.name} - Episodes ${startEp}-${endEp}`,
-                                description: `${sequel.relation} - Part ${p} (${endEp - startEp + 1} episodes)`,
+                                description: `Part ${p} (${endEp - startEp + 1} episodes)`,
                                 value: `anime_season_${sequel.malId}_${p}`,
-                                emoji: emoji,
+                                emoji: '▶️',
                                 malId: sequel.malId,
                                 partNum: p
                             });
@@ -447,9 +459,9 @@ class DetailsHandler {
                     } else {
                         allSeasons.push({
                             label: sequel.name,
-                            description: `${sequel.relation} - ${sequel.episodes} episode${sequel.episodes > 1 ? 's' : ''}`,
+                            description: `${sequel.episodes} episode${sequel.episodes > 1 ? 's' : ''}`,
                             value: `anime_season_${sequel.malId}_1`,
-                            emoji: emoji,
+                            emoji: '▶️',
                             malId: sequel.malId,
                             partNum: 1
                         });
