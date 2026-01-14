@@ -301,6 +301,61 @@ class DetailsHandler {
             messageCleanup.scheduleDelete(errorMsg);
         }
     }
+
+    /**
+     * Show anime links directly via MAL id (fallback when no TMDB id)
+     */
+    async showAnimeDirect(interaction, malId, title) {
+        try {
+            await interaction.deferUpdate();
+
+            if (!malId) {
+                throw new Error('Missing MAL id');
+            }
+
+            // Default to season 1 episode 1 for link generation
+            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, 1, { malId });
+
+            const embed = embedBuilder.createInfoEmbed(
+                `🍥 ${title || 'Anime'}`,
+                'Select a provider to watch.'
+            );
+
+            const streamButtons = streamLinks.map(link =>
+                new ButtonBuilder()
+                    .setLabel(link.name)
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(link.url)
+                    .setEmoji(link.emoji)
+            );
+
+            const backButton = new ButtonBuilder()
+                .setCustomId('back_main')
+                .setLabel('Back')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️');
+
+            const rows = [];
+            if (streamButtons.length) {
+                rows.push(new ActionRowBuilder().addComponents(...streamButtons));
+            }
+            rows.push(new ActionRowBuilder().addComponents(backButton));
+
+            const message = await interaction.editReply({
+                embeds: [embed],
+                components: rows
+            });
+
+            messageCleanup.scheduleDelete(message);
+        } catch (error) {
+            console.error('Error showing anime direct links:', error);
+            const errorMsg = await interaction.editReply({
+                embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime links.')],
+                components: []
+            });
+            messageCleanup.scheduleDelete(errorMsg);
+        }
+    }
 }
 
 module.exports = new DetailsHandler();

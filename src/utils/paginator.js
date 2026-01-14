@@ -340,17 +340,19 @@ class Paginator {
                 
                 showingDetail = true;
 
-                // Determine if movie or TV show
-                const isMovie = selectedItem.media_type === 'movie' || selectedItem.title;
                 const detailsHandler = require('../interactions/detailsHandler');
 
                 try {
-                    if (isMovie) {
-                        // Show detailed movie card with streaming options
-                        await detailsHandler.showMovieDetails(i, selectedItem.id);
+                    if (selectedItem.mal_id && !selectedItem.id) {
+                        await detailsHandler.showAnimeDirect(i, selectedItem.mal_id, selectedItem.title || selectedItem.name);
                     } else {
-                        // Show season selector for TV show
-                        await detailsHandler.showSeasonSelector(i, selectedItem.id);
+                        // Determine if movie or TV show
+                        const isMovie = selectedItem.media_type === 'movie' || selectedItem.title;
+                        if (isMovie) {
+                            await detailsHandler.showMovieDetails(i, selectedItem.id);
+                        } else {
+                            await detailsHandler.showSeasonSelector(i, selectedItem.id);
+                        }
                     }
                 } catch (err) {
                     if (err.code === 10062) {

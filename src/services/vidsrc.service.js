@@ -283,8 +283,8 @@ class VidSrcService {
      * @returns {Promise<Array>}
      */
     async getAllTVLinksWithAnime(tmdbId, season, episode, opts = {}) {
-        const baseLinks = this.getAllTVLinks(tmdbId, season, episode);
         const malId = opts.malId;
+        const baseLinks = tmdbId ? this.getAllTVLinks(tmdbId, season, episode) : [];
 
         // Find anime-capable providers
         const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode);
