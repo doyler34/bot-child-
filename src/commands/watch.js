@@ -21,7 +21,6 @@ module.exports = {
                 .setColor(config.embed.colors.primary)
                 .setTitle('🎬 ZipxMovies - What would you like to watch?')
                 .setDescription('Browse content or check your lists')
-                .setThumbnail('https://i.imgur.com/7KfZWzM.png') // Optional: Add bot logo
                 .setTimestamp();
 
             const row1 = new ActionRowBuilder()

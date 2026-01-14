@@ -53,6 +53,12 @@ class DetailsHandler {
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
 
+            const cancelButton = new ButtonBuilder()
+                .setCustomId('back_main')
+                .setLabel('Main Menu')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🏠');
+
             // Record that user viewed this movie
             const movie = await tmdbService.getMovieDetails(movieId);
             continueWatchingService.recordMovie(interaction.user.id, movie);
@@ -60,7 +66,7 @@ class DetailsHandler {
             // Arrange buttons in rows (max 5 per row)
             const rows = [];
             const streamRow = new ActionRowBuilder().addComponents(...streamButtons);
-            const actionRow = new ActionRowBuilder().addComponents(watchlistButton, backButton);
+            const actionRow = new ActionRowBuilder().addComponents(watchlistButton, backButton, cancelButton);
             
             rows.push(streamRow, actionRow);
 
@@ -130,14 +136,20 @@ class DetailsHandler {
 
             const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 
-            // Add back button
+            // Add back and home buttons
             const backButton = new ButtonBuilder()
                 .setCustomId('back_to_results')
                 .setLabel('Back')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
 
-            const backRow = new ActionRowBuilder().addComponents(backButton);
+            const homeButton = new ButtonBuilder()
+                .setCustomId('back_main')
+                .setLabel('Main Menu')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🏠');
+
+            const backRow = new ActionRowBuilder().addComponents(backButton, homeButton);
 
             const message = await interaction.editReply({
                 embeds: [embed],
@@ -397,14 +409,20 @@ class DetailsHandler {
 
                 const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 
-                // Add back button
+                // Add back and home buttons
                 const backButton = new ButtonBuilder()
                     .setCustomId('back_to_results')
                     .setLabel('Back')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji('⬅️');
 
-                const backRow = new ActionRowBuilder().addComponents(backButton);
+                const homeButton = new ButtonBuilder()
+                    .setCustomId('back_main')
+                    .setLabel('Main Menu')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🏠');
+
+                const backRow = new ActionRowBuilder().addComponents(backButton, homeButton);
 
                 const message = await interaction.editReply({
                     embeds: [embed],
@@ -433,14 +451,20 @@ class DetailsHandler {
 
             const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 
-            // Add back button
+            // Add back and home buttons
             const backButton = new ButtonBuilder()
                 .setCustomId('back_to_results')
                 .setLabel('Back')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
 
-            const backRow = new ActionRowBuilder().addComponents(backButton);
+            const homeButton = new ButtonBuilder()
+                .setCustomId('back_main')
+                .setLabel('Main Menu')
+                .setStyle(ButtonStyle.Danger)
+                .setEmoji('🏠');
+
+            const backRow = new ActionRowBuilder().addComponents(backButton, homeButton);
 
             const message = await interaction.editReply({
                 embeds: [embed],
