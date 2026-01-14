@@ -302,8 +302,8 @@ class VidSrcService {
     }
 
     /**
-     * Generate TV links plus anime providers (uses AniList/MAL mapping or title-based)
-     * @param {number} tmdbId
+     * Generate TV links plus anime providers (uses AniList/MAL mapping, title-based, and optional TMDB/VidSrc)
+     * @param {number} tmdbId - Optional TMDB TV ID (if known)
      * @param {number} season
      * @param {number} episode
      * @param {object} opts - { malId?, title?, year?, anilistId? }
@@ -314,7 +314,8 @@ class VidSrcService {
         const anilistId = opts.anilistId;
         const title = opts.title;
         const year = opts.year;
-        const baseLinks = tmdbId ? this.getAllTVLinks(tmdbId, season, episode) : [];
+        let resolvedTmdbId = tmdbId;
+        let baseLinks = [];
 
         // Find anime-capable providers
         const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode);
@@ -323,15 +324,32 @@ class VidSrcService {
         }
 
         try {
+            // If we don't have a TMDB id but we do have a title, try to find it on TMDB
+            // so that core providers like VidSrc can still be used.
+            if (!resolvedTmdbId && title) {
+                try {
+                    const searchRes = await tmdbService.searchTVShows(title);
+                    const first = (searchRes?.results || [])[0];
+                    if (first && first.id) {
+                        resolvedTmdbId = first.id;
+                    }
+                } catch (err) {
+                    console.warn('TMDB lookup for anime TV id failed:', err.message);
+                }
+            }
+
+            if (resolvedTmdbId) {
+                baseLinks = this.getAllTVLinks(resolvedTmdbId, season, episode);
+            }
+
             let resolvedMalId = malId;
             let resolvedAnilistId = anilistId;
             let resolvedTitle = title;
             let resolvedYear = year;
 
-            // If we have MAL ID but no AniList ID, try to get AniList ID
-            // If we have title but no IDs, try to get both
-            if (!resolvedAnilistId && !resolvedMalId && tmdbId) {
-                const show = await tmdbService.getTVShowDetails(tmdbId);
+            // If we have neither MAL nor AniList but we DO have a TMDB id, enrich from AniList
+            if (!resolvedAnilistId && !resolvedMalId && resolvedTmdbId) {
+                const show = await tmdbService.getTVShowDetails(resolvedTmdbId);
                 resolvedTitle = show?.name;
                 resolvedYear = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
                 const ids = await aniListService.findIds(resolvedTitle, resolvedYear);
