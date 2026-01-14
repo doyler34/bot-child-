@@ -189,7 +189,7 @@ client.on('interactionCreate', async (interaction) => {
             
             const errorMessage = {
                 content: 'There was an error executing this command!',
-                ephemeral: true
+                flags: 64 // ephemeral
             };
 
             if (interaction.replied || interaction.deferred) {
@@ -246,7 +246,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Failed to parse MAL ID from customId: ${customId}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid anime ID. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -272,7 +272,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Failed to parse MAL ID from customId: ${customId}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid anime ID. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -421,7 +421,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Invalid season value format: ${selectedValue}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid selection. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -433,7 +433,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Failed to parse MAL ID or season from value: ${selectedValue}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid selection. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -455,7 +455,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Failed to parse MAL ID from customId: ${customId}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid anime ID. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -466,7 +466,7 @@ client.on('interactionCreate', async (interaction) => {
                 // User selected "more episodes" - show message
                 await interaction.reply({
                     content: '⚠️ This anime has many episodes. Please use the search feature to find specific episodes.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }
@@ -479,7 +479,7 @@ client.on('interactionCreate', async (interaction) => {
                 console.error(`Failed to parse episode from value: ${selectedValue}`);
                 await interaction.reply({
                     content: '❌ Error: Invalid episode number. Please try again.',
-                    ephemeral: true
+                    flags: 64 // ephemeral
                 });
                 return;
             }

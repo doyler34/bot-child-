@@ -90,7 +90,7 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: 64 }); // 64 = ephemeral
 
             const type = interaction.options.getString('type');
             const selection = interaction.options.getString('query');
@@ -114,7 +114,7 @@ module.exports = {
             
             const errorMessage = {
                 content: '❌ Failed to load search results. Please try again.',
-                ephemeral: true
+                flags: 64 // ephemeral
             };
 
             if (interaction.deferred) {

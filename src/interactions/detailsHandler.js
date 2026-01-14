@@ -19,8 +19,10 @@ class DetailsHandler {
      */
     async showMovieDetails(interaction, movieId) {
         try {
-            // Defer immediately to prevent timeout
-            await interaction.deferUpdate();
+            // Defer immediately to prevent timeout (only if not already deferred)
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
             
             // Create detailed movie card
             const embed = await embedBuilder.createDetailedMovieCard(movieId);
@@ -92,8 +94,10 @@ class DetailsHandler {
      */
     async showSeasonSelector(interaction, tvId) {
         try {
-            // Defer immediately to prevent timeout
-            await interaction.deferUpdate();
+            // Defer immediately to prevent timeout (only if not already deferred)
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
             
             // Get TV show details to know how many seasons
             const show = await tmdbService.getTVShowDetails(tvId);
@@ -236,8 +240,10 @@ class DetailsHandler {
      */
     async showEpisodeDetails(interaction, tvId, season, episode) {
         try {
-            // Defer immediately to prevent timeout
-            await interaction.deferUpdate();
+            // Defer immediately to prevent timeout (only if not already deferred)
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
             
             // Get show and episode details
             const show = await tmdbService.getTVShowDetails(tvId);
