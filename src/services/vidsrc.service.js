@@ -28,7 +28,7 @@ class VidSrcService {
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
             },
-            // Default anime provider (MAL-based, uses documented pattern: http://animembed.com/embed/{mal_id}/{episode})
+            // Default anime providers
             {
                 name: 'AnimEmbed',
                 slug: 'animembed',
@@ -36,6 +36,14 @@ class VidSrcService {
                 emoji: '🍥',
                 types: ['tv'],
                 mode: 'mal'
+            },
+            {
+                name: 'AutoEmbed',
+                slug: 'autoembed',
+                baseUrl: 'https://anime.autoembed.cc/embed',
+                emoji: '🎌',
+                types: ['tv'],
+                mode: 'title'
             }
         ];
 
@@ -285,14 +293,17 @@ class VidSrcService {
     }
 
     /**
-     * Generate TV links plus anime providers (uses AniList->MAL mapping)
+     * Generate TV links plus anime providers (uses AniList->MAL mapping or title-based)
      * @param {number} tmdbId
      * @param {number} season
      * @param {number} episode
+     * @param {object} opts - { malId?, title?, year? }
      * @returns {Promise<Array>}
      */
     async getAllTVLinksWithAnime(tmdbId, season, episode, opts = {}) {
         const malId = opts.malId;
+        const title = opts.title;
+        const year = opts.year;
         const baseLinks = tmdbId ? this.getAllTVLinks(tmdbId, season, episode) : [];
 
         // Find anime-capable providers
@@ -303,13 +314,15 @@ class VidSrcService {
 
         try {
             let resolvedMalId = malId;
+            let resolvedTitle = title;
+            let resolvedYear = year;
 
             // If no MAL from upstream, try resolving from TMDB -> AniList
             if (!resolvedMalId && tmdbId) {
                 const show = await tmdbService.getTVShowDetails(tmdbId);
-                const title = show?.name;
-                const year = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
-                const ids = await aniListService.findIds(title, year);
+                resolvedTitle = show?.name;
+                resolvedYear = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
+                const ids = await aniListService.findIds(resolvedTitle, resolvedYear);
                 resolvedMalId = ids.malId;
             }
 
@@ -320,6 +333,16 @@ class VidSrcService {
                         return {
                             name: provider.name,
                             url: `${provider.baseUrl.replace(/\/$/, '')}/${resolvedMalId}/${episode}`,
+                            emoji: provider.emoji
+                        };
+                    } else if (provider.mode === 'title') {
+                        if (!resolvedTitle) return null;
+                        // Slugify title for AutoEmbed format: {title}-episode-{number}
+                        const slug = this._slugifyTitle(resolvedTitle, resolvedYear);
+                        if (!slug) return null;
+                        return {
+                            name: provider.name,
+                            url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
                             emoji: provider.emoji
                         };
                     }

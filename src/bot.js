@@ -205,11 +205,11 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
-        // Handle back_to_anime_eps button
+        // Handle back_to_anime_eps button (back to episode list)
         if (customId.startsWith('back_to_anime_eps_')) {
             // Extract MAL ID: "back_to_anime_eps_{malId}"
             const parts = customId.split('_');
-            const malId = parseInt(parts[parts.length - 1]); // Last part is MAL ID
+            const malId = parseInt(parts[parts.length - 1]);
             
             if (isNaN(malId)) {
                 console.error(`Failed to parse MAL ID from customId: ${customId}`);
@@ -221,7 +221,32 @@ client.on('interactionCreate', async (interaction) => {
             }
             
             const detailsHandler = require('./interactions/detailsHandler');
-            // Get title from Jikan
+            const jikanService = require('./services/jikan.service');
+            try {
+                const anime = await jikanService.getAnimeById(malId);
+                await detailsHandler.showAnimeEpisodeSelector(interaction, malId, anime?.title);
+            } catch (error) {
+                console.error('Error fetching anime for back button:', error);
+                await detailsHandler.showAnimeEpisodeSelector(interaction, malId, null);
+            }
+            return;
+        }
+
+        // Handle back_to_anime_seasons button (back to season/part selector)
+        if (customId.startsWith('back_to_anime_seasons_')) {
+            const parts = customId.split('_');
+            const malId = parseInt(parts[parts.length - 1]);
+            
+            if (isNaN(malId)) {
+                console.error(`Failed to parse MAL ID from customId: ${customId}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid anime ID. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            const detailsHandler = require('./interactions/detailsHandler');
             const jikanService = require('./services/jikan.service');
             try {
                 const anime = await jikanService.getAnimeById(malId);
@@ -327,6 +352,51 @@ client.on('interactionCreate', async (interaction) => {
             const episode = parseInt(selectedValue.split('_')[3]);
             
             await detailsHandler.showEpisodeDetails(interaction, tvId, season, episode);
+            return;
+        }
+
+        // Handle anime season/part selection
+        if (customId.startsWith('select_anime_season_')) {
+            const parts = customId.split('_');
+            const malId = parseInt(parts[3]);
+            
+            if (isNaN(malId)) {
+                console.error(`Failed to parse MAL ID from customId: ${customId}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid anime ID. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            const selectedValue = values[0];
+            
+            // Check if it's a related anime (sequel)
+            if (selectedValue.startsWith('anime_related_')) {
+                const relatedParts = selectedValue.split('_');
+                const relatedMalId = parseInt(relatedParts[relatedParts.length - 1]);
+                if (!isNaN(relatedMalId)) {
+                    // Show episode selector for the related anime
+                    await detailsHandler.showAnimeEpisodeSelector(interaction, relatedMalId, null);
+                }
+                return;
+            }
+            
+            // It's a season/part - extract season number
+            const seasonParts = selectedValue.split('_');
+            const seasonNum = parseInt(seasonParts[seasonParts.length - 1]);
+            
+            if (isNaN(seasonNum)) {
+                console.error(`Failed to parse season from value: ${selectedValue}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid season number. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            // Show episodes for this season/part
+            await detailsHandler.showAnimeSeasonEpisodes(interaction, malId, seasonNum);
             return;
         }
 

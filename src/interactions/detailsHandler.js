@@ -335,27 +335,73 @@ class DetailsHandler {
 
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
-            // Discord limit is 25 options max - show first 24 episodes + a note if more exist
-            const maxEpisodes = Math.min(episodeCount, 24);
+            
+            // Check for relations (sequels/prequels) - these are like "seasons"
+            const relations = anime.relations || [];
+            const sequels = relations.filter(r => r.relation === 'Sequel' || r.relation === 'Prequel');
+            
+            // If we have sequels or more than 24 episodes, show season/part selector
+            if (sequels.length > 0 || episodeCount > 24) {
+                const seasons = [];
+                
+                // Add main series as "Season 1" or "Part 1"
+                const episodesPerSeason = 24;
+                const numSeasons = Math.ceil(episodeCount / episodesPerSeason);
+                
+                for (let s = 1; s <= Math.min(numSeasons, 25); s++) {
+                    const startEp = (s - 1) * episodesPerSeason + 1;
+                    const endEp = Math.min(s * episodesPerSeason, episodeCount);
+                    seasons.push({
+                        label: `Part ${s} (Episodes ${startEp}-${endEp})`,
+                        description: `${endEp - startEp + 1} episodes`,
+                        value: `anime_season_${malId}_${s}`,
+                        emoji: '📺'
+                    });
+                }
+                
+                // Add sequels as additional parts
+                sequels.slice(0, Math.max(0, 25 - seasons.length)).forEach((seq, idx) => {
+                    seasons.push({
+                        label: seq.entry?.[0]?.name || `Part ${seasons.length + 1}`,
+                        description: `Sequel/Related series`,
+                        value: `anime_related_${malId}_${seq.entry?.[0]?.mal_id || idx}`,
+                        emoji: '🔗'
+                    });
+                });
 
-            // Create episode selection menu
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`select_anime_season_${malId}`)
+                    .setPlaceholder('Choose a part/season')
+                    .addOptions(seasons.slice(0, 25)); // Discord limit
+
+                const menuRow = new ActionRowBuilder().addComponents(selectMenu);
+
+                // Add back button
+                const backButton = new ButtonBuilder()
+                    .setCustomId('back_to_results')
+                    .setLabel('Back')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⬅️');
+
+                const backRow = new ActionRowBuilder().addComponents(backButton);
+
+                const message = await interaction.editReply({
+                    embeds: [embed],
+                    components: [menuRow, backRow]
+                });
+
+                messageCleanup.scheduleDelete(message);
+                return;
+            }
+
+            // If 24 or fewer episodes, show direct episode selector
             const episodes = [];
-            for (let i = 1; i <= maxEpisodes; i++) {
+            for (let i = 1; i <= episodeCount; i++) {
                 episodes.push({
                     label: `Episode ${i}`,
                     description: `Watch episode ${i}`,
                     value: `anime_ep_${malId}_${i}`,
                     emoji: '🎬'
-                });
-            }
-
-            // If more than 24 episodes, add a note (keeping total at 25)
-            if (episodeCount > 24) {
-                episodes.push({
-                    label: `More episodes (${episodeCount} total)`,
-                    description: `Episodes 1-24 shown. Use search for others.`,
-                    value: `anime_ep_${malId}_more`,
-                    emoji: '➕'
                 });
             }
 
@@ -391,6 +437,92 @@ class DetailsHandler {
                 if (interaction.replied || interaction.deferred) {
                     const errorMsg = await interaction.editReply(payload);
                     messageCleanup.scheduleDelete(errorMsg);
+                } else {
+                    await interaction.reply({ ...payload, ephemeral: true });
+                }
+            } catch (replyError) {
+                console.error('Failed to send error message:', replyError);
+            }
+        }
+    }
+
+    /**
+     * Show episodes for a specific season/part
+     */
+    async showAnimeSeasonEpisodes(interaction, malId, seasonNum) {
+        try {
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
+
+            if (!malId || isNaN(malId) || !seasonNum || isNaN(seasonNum)) {
+                throw new Error('Missing or invalid parameters');
+            }
+
+            malId = parseInt(malId, 10);
+            seasonNum = parseInt(seasonNum, 10);
+
+            // Fetch anime details
+            let anime = null;
+            try {
+                anime = await jikanService.getAnimeById(malId);
+            } catch (error) {
+                console.error('Failed to fetch anime details:', error);
+                throw new Error('Failed to load anime details');
+            }
+
+            const episodeCount = anime.episodes || 1;
+            const episodesPerSeason = 24;
+            const startEp = (seasonNum - 1) * episodesPerSeason + 1;
+            const endEp = Math.min(seasonNum * episodesPerSeason, episodeCount);
+
+            // Create embed
+            const embed = embedBuilder.createDetailedAnimeCard(anime);
+            embed.setTitle(`🍥 ${anime.title} - Part ${seasonNum}`);
+            embed.setDescription(`Episodes ${startEp}-${endEp}`);
+
+            // Create episode options
+            const episodes = [];
+            for (let i = startEp; i <= endEp; i++) {
+                episodes.push({
+                    label: `Episode ${i}`,
+                    description: `Watch episode ${i}`,
+                    value: `anime_ep_${malId}_${i}`,
+                    emoji: '🎬'
+                });
+            }
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId(`select_anime_ep_${malId}`)
+                .setPlaceholder(`Choose an episode (${startEp}-${endEp})`)
+                .addOptions(episodes);
+
+            const menuRow = new ActionRowBuilder().addComponents(selectMenu);
+
+            // Add back button
+            const backButton = new ButtonBuilder()
+                .setCustomId(`back_to_anime_seasons_${malId}`)
+                .setLabel('Back to Parts')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️');
+
+            const backRow = new ActionRowBuilder().addComponents(backButton);
+
+            const message = await interaction.editReply({
+                embeds: [embed],
+                components: [menuRow, backRow]
+            });
+
+            messageCleanup.scheduleDelete(message);
+        } catch (error) {
+            console.error('Error showing anime season episodes:', error);
+            const payload = {
+                embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load episodes.')],
+                components: []
+            };
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.editReply(payload);
                 } else {
                     await interaction.reply({ ...payload, ephemeral: true });
                 }
@@ -440,8 +572,12 @@ class DetailsHandler {
                 embed.setTitle(`🍥 ${anime.title} - Episode ${episode}`);
             }
 
-            // Get streaming links for this episode
-            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, episode, { malId });
+            // Get streaming links for this episode (pass title for title-based providers)
+            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, episode, { 
+                malId,
+                title: anime?.title,
+                year: anime?.aired?.from ? new Date(anime.aired.from).getFullYear() : undefined
+            });
 
             const streamButtons = streamLinks.map(link =>
                 new ButtonBuilder()
