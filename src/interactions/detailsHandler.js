@@ -8,6 +8,7 @@ const embedBuilder = require('../ui/embedBuilder');
 const tmdbService = require('../services/tmdb.service');
 const vidsrcService = require('../services/vidsrc.service');
 const jikanService = require('../services/jikan.service');
+const aniListService = require('../services/anilist.service');
 const messageCleanup = require('../utils/messageCleanup');
 const watchlistService = require('../database/watchlist.service');
 const continueWatchingService = require('../database/continueWatching.service');
@@ -572,9 +573,22 @@ class DetailsHandler {
                 embed.setTitle(`🍥 ${anime.title} - Episode ${episode}`);
             }
 
-            // Get streaming links for this episode (pass title for title-based providers)
+            // Get AniList ID for Cinetaro
+            let anilistId = null;
+            if (anime?.title) {
+                try {
+                    const year = anime?.aired?.from ? new Date(anime.aired.from).getFullYear() : undefined;
+                    const ids = await aniListService.findIds(anime.title, year);
+                    anilistId = ids.anilistId;
+                } catch (error) {
+                    console.warn('Failed to fetch AniList ID:', error);
+                }
+            }
+
+            // Get streaming links for this episode
             const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, episode, { 
                 malId,
+                anilistId,
                 title: anime?.title,
                 year: anime?.aired?.from ? new Date(anime.aired.from).getFullYear() : undefined
             });

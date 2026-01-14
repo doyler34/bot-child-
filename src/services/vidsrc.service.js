@@ -8,6 +8,7 @@ const axios = require('axios');
 const keys = require('../config/keys');
 const tmdbService = require('./tmdb.service');
 const aniListService = require('./anilist.service');
+const gojoService = require('./gojo.service');
 
 class VidSrcService {
     constructor() {
@@ -30,12 +31,12 @@ class VidSrcService {
             },
             // Default anime providers
             {
-                name: 'AnimEmbed',
-                slug: 'animembed',
-                baseUrl: 'http://animembed.com/embed',
-                emoji: '🍥',
+                name: 'Cinetaro',
+                slug: 'cinetaro',
+                baseUrl: 'https://api.cinetaro.buzz',
+                emoji: '🎬',
                 types: ['tv'],
-                mode: 'mal'
+                mode: 'anilist'
             },
             {
                 name: 'AutoEmbed',
@@ -44,6 +45,14 @@ class VidSrcService {
                 emoji: '🎌',
                 types: ['tv'],
                 mode: 'title'
+            },
+            {
+                name: 'Gojo',
+                slug: 'gojo',
+                baseUrl: 'https://gojo-api.deno.dev',
+                emoji: '⚔️',
+                types: ['tv'],
+                mode: 'gojo'
             }
         ];
 
@@ -293,15 +302,16 @@ class VidSrcService {
     }
 
     /**
-     * Generate TV links plus anime providers (uses AniList->MAL mapping or title-based)
+     * Generate TV links plus anime providers (uses AniList/MAL mapping or title-based)
      * @param {number} tmdbId
      * @param {number} season
      * @param {number} episode
-     * @param {object} opts - { malId?, title?, year? }
+     * @param {object} opts - { malId?, title?, year?, anilistId? }
      * @returns {Promise<Array>}
      */
     async getAllTVLinksWithAnime(tmdbId, season, episode, opts = {}) {
         const malId = opts.malId;
+        const anilistId = opts.anilistId;
         const title = opts.title;
         const year = opts.year;
         const baseLinks = tmdbId ? this.getAllTVLinks(tmdbId, season, episode) : [];
@@ -314,41 +324,76 @@ class VidSrcService {
 
         try {
             let resolvedMalId = malId;
+            let resolvedAnilistId = anilistId;
             let resolvedTitle = title;
             let resolvedYear = year;
 
-            // If no MAL from upstream, try resolving from TMDB -> AniList
-            if (!resolvedMalId && tmdbId) {
+            // If we have MAL ID but no AniList ID, try to get AniList ID
+            // If we have title but no IDs, try to get both
+            if (!resolvedAnilistId && !resolvedMalId && tmdbId) {
                 const show = await tmdbService.getTVShowDetails(tmdbId);
                 resolvedTitle = show?.name;
                 resolvedYear = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
                 const ids = await aniListService.findIds(resolvedTitle, resolvedYear);
                 resolvedMalId = ids.malId;
+                resolvedAnilistId = ids.anilistId;
+            } else if (resolvedMalId && !resolvedAnilistId) {
+                // We have MAL ID, try to get AniList ID via title lookup
+                if (resolvedTitle) {
+                    const ids = await aniListService.findIds(resolvedTitle, resolvedYear);
+                    resolvedAnilistId = ids.anilistId;
+                }
             }
 
-            const animeLinks = animeProviders
-                .map(provider => {
-                    if (provider.mode === 'mal') {
-                        if (!resolvedMalId) return null;
+            // Handle async providers (like Gojo) separately
+            const syncLinks = [];
+            const asyncProviders = [];
+
+            animeProviders.forEach(provider => {
+                if (provider.mode === 'anilist') {
+                    // Cinetaro format: /anime/[ANILIST_ID]/[SEASON]/[EPISODE]/[TYPE]
+                    if (!resolvedAnilistId) return;
+                    syncLinks.push({
+                        name: provider.name,
+                        url: `${provider.baseUrl.replace(/\/$/, '')}/anime/${resolvedAnilistId}/${season}/${episode}/sub`,
+                        emoji: provider.emoji
+                    });
+                } else if (provider.mode === 'title') {
+                    // AutoEmbed format: {title}-episode-{number}
+                    if (!resolvedTitle) return;
+                    const slug = this._slugifyTitle(resolvedTitle, resolvedYear);
+                    if (!slug) return;
+                    syncLinks.push({
+                        name: provider.name,
+                        url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
+                        emoji: provider.emoji
+                    });
+                } else if (provider.mode === 'gojo') {
+                    // Gojo requires async API calls
+                    asyncProviders.push(provider);
+                }
+            });
+
+            // Handle async providers (Gojo)
+            const asyncLinks = await Promise.all(
+                asyncProviders.map(async provider => {
+                    if (!resolvedTitle) return null;
+                    try {
+                        const streamUrl = await gojoService.getEpisodeStreamUrl(resolvedTitle, episode);
+                        if (!streamUrl) return null;
                         return {
                             name: provider.name,
-                            url: `${provider.baseUrl.replace(/\/$/, '')}/${resolvedMalId}/${episode}`,
+                            url: streamUrl,
                             emoji: provider.emoji
                         };
-                    } else if (provider.mode === 'title') {
-                        if (!resolvedTitle) return null;
-                        // Slugify title for AutoEmbed format: {title}-episode-{number}
-                        const slug = this._slugifyTitle(resolvedTitle, resolvedYear);
-                        if (!slug) return null;
-                        return {
-                            name: provider.name,
-                            url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
-                            emoji: provider.emoji
-                        };
+                    } catch (error) {
+                        console.warn(`[VidSrc] Failed to get ${provider.name} link:`, error.message);
+                        return null;
                     }
-                    return null;
                 })
-                .filter(Boolean);
+            );
+
+            const animeLinks = [...syncLinks, ...asyncLinks.filter(Boolean)];
 
             return [...baseLinks, ...animeLinks];
         } catch (err) {
