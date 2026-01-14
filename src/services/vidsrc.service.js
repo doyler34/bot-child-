@@ -144,6 +144,22 @@ class VidSrcService {
             throw new Error('Unsupported provider');
         }
 
+        // Handle Gojo specially - it returns direct stream URLs
+        if (provider.mode === 'gojo') {
+            if (type !== 'tv') {
+                throw new Error('Gojo only supports TV/anime');
+            }
+            if (!params?.title || !params?.episode) {
+                throw new Error('Title and episode are required for Gojo');
+            }
+            const streamUrl = await gojoService.getEpisodeStreamUrl(params.title, params.episode);
+            if (!streamUrl) {
+                throw new Error('Failed to get Gojo stream URL');
+            }
+            // Return direct stream URL (will be wrapped in HTML by proxy)
+            return streamUrl;
+        }
+
         let path;
         if (type === 'movie') {
             if (!params?.tmdbId) throw new Error('TMDB ID is required');
@@ -399,6 +415,24 @@ class VidSrcService {
                     try {
                         const streamUrl = await gojoService.getEpisodeStreamUrl(resolvedTitle, episode);
                         if (!streamUrl) return null;
+                        
+                        // Wrap through proxy for HTML wrapper (fullscreen support)
+                        const proxyEnabled = keys.proxy?.enabled;
+                        const proxyBase = keys.proxy?.publicBaseUrl || `http://localhost:${keys.proxy?.port || 3001}`;
+                        
+                        if (proxyEnabled) {
+                            // Use proxy endpoint that will wrap the direct stream URL in HTML
+                            // Format: /proxy/gojo/tv?url={encodedStreamUrl}
+                            const encodedUrl = encodeURIComponent(streamUrl);
+                            const proxyUrl = `${proxyBase.replace(/\/$/, '')}/proxy/${provider.slug}/tv?url=${encodedUrl}`;
+                            return {
+                                name: provider.name,
+                                url: proxyUrl,
+                                emoji: provider.emoji
+                            };
+                        }
+                        
+                        // If proxy disabled, return direct URL
                         return {
                             name: provider.name,
                             url: streamUrl,
