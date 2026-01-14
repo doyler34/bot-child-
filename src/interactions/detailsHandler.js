@@ -353,7 +353,8 @@ class DetailsHandler {
             const relations = anime.relations || [];
             const allSeasons = [];
             
-            // Add the current season first
+            // Add the current season first (prefer English title)
+            const mainTitle = anime.title_english || anime.title;
             if (episodeCount > 24) {
                 // Split into parts
                 const episodesPerPart = 24;
@@ -363,7 +364,7 @@ class DetailsHandler {
                     const startEp = (p - 1) * episodesPerPart + 1;
                     const endEp = Math.min(p * episodesPerPart, episodeCount);
                     allSeasons.push({
-                        label: `${anime.title} - Episodes ${startEp}-${endEp}`,
+                        label: `${mainTitle} - Episodes ${startEp}-${endEp}`,
                         description: `Part ${p} (${endEp - startEp + 1} episodes)`,
                         value: `anime_season_${malId}_${p}`,
                         emoji: '📺',
@@ -374,7 +375,7 @@ class DetailsHandler {
             } else {
                 // Add as single season
                 allSeasons.push({
-                    label: anime.title,
+                    label: mainTitle,
                     description: `${episodeCount} episode${episodeCount > 1 ? 's' : ''}`,
                     value: `anime_season_${malId}_1`,
                     emoji: '📺',
@@ -420,10 +421,12 @@ class DetailsHandler {
                         const relatedAnime = await jikanService.getAnimeById(entry.malId);
                         
                         if (relatedAnime) {
-                            console.log(`[Anime]   ✓ Got ${relatedAnime.title}: ${relatedAnime.episodes || '?'} episodes, aired ${relatedAnime.aired?.from || 'unknown'}`);
+                            // Prefer English title for better readability
+                            const displayName = relatedAnime.title_english || relatedAnime.title;
+                            console.log(`[Anime]   ✓ Got ${displayName}: ${relatedAnime.episodes || '?'} episodes, aired ${relatedAnime.aired?.from || 'unknown'}`);
                             allRelated.push({
                                 malId: relatedAnime.mal_id,
-                                name: relatedAnime.title,
+                                name: displayName,
                                 episodes: relatedAnime.episodes || 1,
                                 aired: relatedAnime.aired?.from,
                                 relationType: entry.relationType

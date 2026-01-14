@@ -444,9 +444,11 @@ class EmbedBuilderService {
      */
     createDetailedAnimeCard(anime) {
         // Match TV show/movie layout: clean title without rating
+        // Prefer English title for better readability
+        const displayTitle = anime.title_english || anime.title || 'Anime';
         const embed = new EmbedBuilder()
             .setColor(config.embed.colors.primary)
-            .setTitle(`🍥 ${anime.title || 'Anime'}`)
+            .setTitle(`🍥 ${displayTitle}`)
             .setTimestamp();
 
         // Add poster as thumbnail (same as TV shows/movies)
