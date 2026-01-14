@@ -249,7 +249,13 @@ class Paginator {
 
                 // Add poster image
                 if (item.poster_path) {
-                    embed.setImage(tmdbService.buildImageUrl(item.poster_path, 'w342'));
+                    // For TMDB items, poster_path is a relative path; for anime (Jikan)
+                    // it's already a full URL. Detect and handle both.
+                    if (typeof item.poster_path === 'string' && item.poster_path.startsWith('http')) {
+                        embed.setImage(item.poster_path);
+                    } else {
+                        embed.setImage(tmdbService.buildImageUrl(item.poster_path, 'w342'));
+                    }
                 }
 
                 embeds.push(embed);

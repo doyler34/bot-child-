@@ -396,11 +396,13 @@ class MenuHandler {
             const results = await jikanService.topAnime(1);
             console.log(`[MenuHandler] Jikan returned ${results?.length || 0} results`);
             
+            // For anime we intentionally do NOT set a TMDB id so paginator
+            // can detect MAL-only items and route to showAnimeDirect
             const items = results.slice(0, 20).map(item => ({
-                id: item.mal_id,
                 mal_id: item.mal_id,
                 title: item.title,
                 name: item.title,
+                // Full image URL from Jikan; paginator will use it directly
                 poster_path: item.images?.jpg?.large_image_url || null,
                 media_type: 'tv'
             }));
@@ -475,7 +477,6 @@ class MenuHandler {
             console.log(`[MenuHandler] Jikan returned ${results?.length || 0} results`);
             
             const items = results.slice(0, 20).map(item => ({
-                id: item.mal_id,
                 mal_id: item.mal_id,
                 title: item.title,
                 name: item.title,
@@ -571,7 +572,6 @@ class MenuHandler {
                 const jikanResults = await jikanService.searchAnime(query);
                 console.log(`[MenuHandler] Jikan search returned ${jikanResults?.length || 0} results`);
                 items = jikanResults.slice(0, 20).map(item => ({
-                    id: item.mal_id,
                     mal_id: item.mal_id,
                     title: item.title,
                     name: item.title,
