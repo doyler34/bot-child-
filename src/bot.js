@@ -10,6 +10,7 @@ const path = require('path');
 const config = require('./config/config');
 const keys = require('./config/keys');
 const database = require('./database/database');
+const proxyServer = require('./proxy/server');
 
 // Initialize Discord client with required intents
 const client = new Client({
@@ -97,6 +98,9 @@ async function registerCommands() {
 
 // Load commands on startup
 loadCommands();
+
+// Start proxy server if enabled
+proxyServer.start();
 
 /**
  * Ready Event Handler

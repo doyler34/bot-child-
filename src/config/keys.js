@@ -21,5 +21,13 @@ module.exports = {
     // VidSrc Configuration
     vidsrc: {
         baseUrl: 'https://vidsrc.to/embed'
+    },
+
+    // Optional lightweight proxy to unwrap provider iframes
+    proxy: {
+        enabled: process.env.PROXY_ENABLED === 'true',
+        // Prefer platform-provided PORT (e.g., Railway) when PROXY_PORT not set
+        port: parseInt(process.env.PROXY_PORT || process.env.PORT || '3001', 10),
+        publicBaseUrl: process.env.PROXY_PUBLIC_URL || ''
     }
 };

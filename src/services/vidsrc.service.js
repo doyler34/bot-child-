@@ -4,6 +4,7 @@
  * Uses VidSrc embed-based streaming provider
  */
 
+const axios = require('axios');
 const keys = require('../config/keys');
 
 class VidSrcService {
@@ -14,16 +15,19 @@ class VidSrcService {
         this.providers = [
             {
                 name: 'VidSrc',
+                slug: 'vidsrc',
                 baseUrl: 'https://vidsrc.to/embed',
                 emoji: '🎬'
             },
             {
                 name: 'VidSrc Pro',
+                slug: 'vidsrcpro',
                 baseUrl: 'https://vidsrc.pro/embed',
                 emoji: '⭐'
             },
             {
                 name: 'VidSrc Me',
+                slug: 'vidsrcme',
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
             }
@@ -41,7 +45,8 @@ class VidSrcService {
             throw new Error('TMDB ID is required');
         }
 
-        const url = `${this.baseUrl}/movie/${tmdbId}`;
+        const provider = this.providers[0];
+        const url = this._buildProviderUrl(provider, `/movie/${tmdbId}`);
         
         if (title) {
             console.log(`🎬 Generated movie link: ${title} (${tmdbId})`);
@@ -67,7 +72,8 @@ class VidSrcService {
             throw new Error('Season and episode must be positive numbers');
         }
 
-        const url = `${this.baseUrl}/tv/${tmdbId}/${season}/${episode}`;
+        const provider = this.providers[0];
+        const url = this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`);
         
         if (title) {
             console.log(`📺 Generated TV link: ${title} S${season}E${episode} (${tmdbId})`);
@@ -97,6 +103,36 @@ class VidSrcService {
         } else {
             throw new Error('Invalid media type. Must be "movie" or "tv"');
         }
+    }
+
+    /**
+     * Resolve a provider embed URL to the innermost iframe target (proxy use)
+     * @param {string} providerSlug - Provider identifier
+     * @param {string} type - 'movie' or 'tv'
+     * @param {object} params - { tmdbId, season?, episode? }
+     * @returns {Promise<string>}
+     */
+    async resolveStream(providerSlug, type, params) {
+        const provider = this._getProviderBySlug(providerSlug);
+        if (!provider) {
+            throw new Error('Unsupported provider');
+        }
+
+        let path;
+        if (type === 'movie') {
+            if (!params?.tmdbId) throw new Error('TMDB ID is required');
+            path = `/movie/${params.tmdbId}`;
+        } else if (type === 'tv') {
+            if (!params?.tmdbId || !params?.season || !params?.episode) {
+                throw new Error('TMDB ID, season, and episode are required');
+            }
+            path = `/tv/${params.tmdbId}/${params.season}/${params.episode}`;
+        } else {
+            throw new Error('Invalid media type');
+        }
+
+        const targetUrl = `${provider.baseUrl}${path}`;
+        return await this._extractIframeSrc(targetUrl);
     }
 
     /**
@@ -211,7 +247,7 @@ class VidSrcService {
 
         return this.providers.map(provider => ({
             name: provider.name,
-            url: `${provider.baseUrl}/movie/${tmdbId}`,
+            url: this._buildProviderUrl(provider, `/movie/${tmdbId}`),
             emoji: provider.emoji
         }));
     }
@@ -230,9 +266,60 @@ class VidSrcService {
 
         return this.providers.map(provider => ({
             name: provider.name,
-            url: `${provider.baseUrl}/tv/${tmdbId}/${season}/${episode}`,
+            url: this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`),
             emoji: provider.emoji
         }));
+    }
+
+    /**
+     * Build provider URL; if proxy enabled, wrap through proxy
+     * @private
+     */
+    _buildProviderUrl(provider, path) {
+        const proxyEnabled = keys.proxy?.enabled;
+        const proxyBase = keys.proxy?.publicBaseUrl || `http://localhost:${keys.proxy?.port || 3001}`;
+
+        if (proxyEnabled) {
+            const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+            return `${proxyBase.replace(/\/$/, '')}/proxy/${provider.slug}${normalizedPath}`;
+        }
+
+        return `${provider.baseUrl}${path}`;
+    }
+
+    /**
+     * Find provider by slug
+     * @private
+     */
+    _getProviderBySlug(slug) {
+        return this.providers.find(p => p.slug === slug);
+    }
+
+    /**
+     * Extract deepest iframe src from an embed page (up to depth 3)
+     * @private
+     */
+    async _extractIframeSrc(targetUrl, depth = 0) {
+        if (depth > 3) {
+            throw new Error('Reached maximum iframe depth');
+        }
+
+        const response = await axios.get(targetUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; StreamBot/1.0)'
+            },
+            timeout: 8000
+        });
+
+        const iframeMatch = response.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+        if (!iframeMatch) {
+            return targetUrl;
+        }
+
+        const iframeSrc = iframeMatch[1];
+        const resolved = new URL(iframeSrc, targetUrl).toString();
+
+        return this._extractIframeSrc(resolved, depth + 1);
     }
 }
 
