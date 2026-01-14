@@ -416,6 +416,8 @@ class MenuHandler {
                 editReply: interaction.editReply.bind(interaction)
             };
 
+            console.log(`Anime popular fetched ${items.length} items`);
+
             await paginator.paginateWithSelection(
                 replyInteraction,
                 items,
@@ -463,6 +465,8 @@ class MenuHandler {
                 deferred: true,
                 editReply: interaction.editReply.bind(interaction)
             };
+
+            console.log(`Anime trending fetched ${items.length} items`);
 
             await paginator.paginateWithSelection(
                 replyInteraction,
