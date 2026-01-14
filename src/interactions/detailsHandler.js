@@ -398,7 +398,15 @@ class DetailsHandler {
                 const relations = animeData.relations || [];
                 console.log(`[Anime] ${'  '.repeat(depth)}Checking relations at depth ${depth}`);
                 
+                // Filter out non-essential relation types to reduce API calls
+                const essentialRelations = ['Sequel', 'Prequel', 'Alternative Version', 'Side Story'];
+                
                 relations.forEach(rel => {
+                    // Skip summaries, character collabs, and other non-essential content
+                    if (!essentialRelations.includes(rel.relation)) {
+                        return;
+                    }
+                    
                     const entries = rel.entry || [];
                     entries.forEach(entry => {
                         if (entry.type === 'anime' && entry.mal_id && !seenIds.has(entry.mal_id)) {
@@ -420,43 +428,34 @@ class DetailsHandler {
             
             console.log(`[Anime] Found ${toFetch.length} related anime to fetch`);
             
-            // Fetch all related anime in batches (3 at a time to respect rate limit)
-            const batchSize = 3;
-            for (let i = 0; i < toFetch.length; i += batchSize) {
-                const batch = toFetch.slice(i, i + batchSize);
-                console.log(`[Anime] Fetching batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(toFetch.length / batchSize)}...`);
+            // Fetch sequentially with proper rate limiting (Jikan limit: 1 req/sec)
+            for (let i = 0; i < toFetch.length; i++) {
+                const entry = toFetch[i];
+                console.log(`[Anime] Fetching ${i + 1}/${toFetch.length}: ${entry.name}...`);
                 
-                const results = await Promise.all(
-                    batch.map(async (entry) => {
-                        try {
-                            const relatedAnime = await jikanService.getAnimeById(entry.malId);
-                            if (relatedAnime) {
-                                // Collect more related anime from this one
-                                collectRelatedIds(relatedAnime, entry.depth + 1);
-                                
-                                const displayName = relatedAnime.title_english || relatedAnime.title;
-                                console.log(`[Anime]   ✓ ${displayName}: ${relatedAnime.episodes || '?'} eps`);
-                                return {
-                                    malId: relatedAnime.mal_id,
-                                    name: displayName,
-                                    episodes: relatedAnime.episodes || 1,
-                                    aired: relatedAnime.aired?.from,
-                                    relationType: entry.relationType
-                                };
-                            }
-                        } catch (err) {
-                            console.warn(`[Anime]   ✗ Failed ${entry.name}:`, err.message);
-                        }
-                        return null;
-                    })
-                );
+                try {
+                    const relatedAnime = await jikanService.getAnimeById(entry.malId);
+                    if (relatedAnime) {
+                        // Collect more related anime from this one
+                        collectRelatedIds(relatedAnime, entry.depth + 1);
+                        
+                        const displayName = relatedAnime.title_english || relatedAnime.title;
+                        console.log(`[Anime]   ✓ ${displayName}: ${relatedAnime.episodes || '?'} eps`);
+                        allRelated.push({
+                            malId: relatedAnime.mal_id,
+                            name: displayName,
+                            episodes: relatedAnime.episodes || 1,
+                            aired: relatedAnime.aired?.from,
+                            relationType: entry.relationType
+                        });
+                    }
+                } catch (err) {
+                    console.warn(`[Anime]   ✗ Failed ${entry.name}:`, err.message);
+                }
                 
-                // Add successful results
-                results.filter(Boolean).forEach(r => allRelated.push(r));
-                
-                // Wait between batches to avoid rate limiting
-                if (i + batchSize < toFetch.length) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                // Wait 1.5 seconds between requests to respect Jikan rate limit
+                if (i < toFetch.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
             }
             

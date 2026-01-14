@@ -1,89 +1,210 @@
 /**
  * Message Cleanup Utility
- * Automatically deletes bot messages after a specified time
+ * - Deletes user conversations after 3 minutes of inactivity
+ * - Global cleanup every 40 minutes for orphaned messages
+ * - Tracks active interactions to avoid deleting during use
  */
 
 class MessageCleanup {
     constructor() {
-        this.deleteAfter = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-        this.scheduledDeletions = new Map();
+        this.inactivityTimeout = 3 * 60 * 1000; // 3 minutes
+        this.globalCleanupInterval = 40 * 60 * 1000; // 40 minutes
+        
+        // Track user sessions: userId -> { messages: Set, lastActivity: timestamp, timeout: timeoutId }
+        this.userSessions = new Map();
+        
+        // Track all bot messages: messageId -> { timestamp, userId }
+        this.allMessages = new Map();
+        
+        // Global cleanup interval
+        this.globalCleanupTimer = null;
     }
 
     /**
-     * Schedule a message for deletion
-     * @param {Message} message - Discord message object
-     * @param {number} delay - Delay in milliseconds (default: 6 hours)
+     * Initialize global cleanup interval
+     * @param {Client} client - Discord client
      */
-    scheduleDelete(message, delay = this.deleteAfter) {
-        if (!message || !message.deletable) {
+    startGlobalCleanup(client) {
+        if (this.globalCleanupTimer) {
+            clearInterval(this.globalCleanupTimer);
+        }
+
+        this.globalCleanupTimer = setInterval(async () => {
+            console.log('🧹 Running global message cleanup...');
+            await this.cleanupOldMessages(client);
+        }, this.globalCleanupInterval);
+
+        console.log(`✓ Global cleanup scheduled every ${this.globalCleanupInterval / 1000 / 60} minutes`);
+    }
+
+    /**
+     * Track a message and associate it with a user
+     * @param {Message} message - Discord message object
+     * @param {string} userId - User ID who triggered this message
+     */
+    trackMessage(message, userId) {
+        if (!message || !message.id) return;
+
+        // Add to global message tracker
+        this.allMessages.set(message.id, {
+            timestamp: Date.now(),
+            userId: userId,
+            message: message
+        });
+
+        // Update user session
+        if (!this.userSessions.has(userId)) {
+            this.userSessions.set(userId, {
+                messages: new Set(),
+                lastActivity: Date.now(),
+                timeout: null
+            });
+        }
+
+        const session = this.userSessions.get(userId);
+        session.messages.add(message.id);
+        this.updateUserActivity(userId);
+    }
+
+    /**
+     * Update user's last activity and reset their inactivity timer
+     * @param {string} userId - User ID
+     */
+    updateUserActivity(userId) {
+        const session = this.userSessions.get(userId);
+        if (!session) return;
+
+        session.lastActivity = Date.now();
+
+        // Clear existing timeout
+        if (session.timeout) {
+            clearTimeout(session.timeout);
+        }
+
+        // Set new timeout for inactivity cleanup
+        session.timeout = setTimeout(async () => {
+            console.log(`⏱️ User ${userId} inactive for 3 minutes, cleaning up messages...`);
+            await this.cleanupUserSession(userId);
+        }, this.inactivityTimeout);
+    }
+
+    /**
+     * Clean up all messages for a specific user
+     * @param {string} userId - User ID
+     */
+    async cleanupUserSession(userId) {
+        const session = this.userSessions.get(userId);
+        if (!session) return;
+
+        console.log(`🗑️ Cleaning up ${session.messages.size} messages for user ${userId}`);
+
+        const deletionPromises = [];
+        for (const messageId of session.messages) {
+            const messageData = this.allMessages.get(messageId);
+            if (messageData && messageData.message) {
+                deletionPromises.push(
+                    messageData.message.delete().catch(err => {
+                        console.error(`Failed to delete message ${messageId}:`, err.message);
+                    })
+                );
+                this.allMessages.delete(messageId);
+            }
+        }
+
+        await Promise.all(deletionPromises);
+
+        // Clear timeout and remove session
+        if (session.timeout) {
+            clearTimeout(session.timeout);
+        }
+        this.userSessions.delete(userId);
+
+        console.log(`✓ Cleaned up user session for ${userId}`);
+    }
+
+    /**
+     * Global cleanup of all messages older than 40 minutes
+     * @param {Client} client - Discord client
+     */
+    async cleanupOldMessages(client) {
+        const now = Date.now();
+        const messagesToDelete = [];
+
+        for (const [messageId, data] of this.allMessages.entries()) {
+            const age = now - data.timestamp;
+            
+            // Check if message is older than 40 minutes AND user is not active
+            const userSession = this.userSessions.get(data.userId);
+            const userInactive = !userSession || (now - userSession.lastActivity > this.inactivityTimeout);
+
+            if (age > this.globalCleanupInterval && userInactive) {
+                messagesToDelete.push({ messageId, data });
+            }
+        }
+
+        if (messagesToDelete.length === 0) {
+            console.log('No old messages to clean up');
             return;
         }
 
-        // Cancel any existing scheduled deletion for this message
-        if (this.scheduledDeletions.has(message.id)) {
-            clearTimeout(this.scheduledDeletions.get(message.id));
-        }
+        console.log(`Found ${messagesToDelete.length} old messages to delete`);
 
-        // Schedule new deletion
-        const timeoutId = setTimeout(async () => {
+        for (const { messageId, data } of messagesToDelete) {
             try {
-                await message.delete();
-                console.log(`🗑️ Deleted message ${message.id} after ${delay / 1000 / 60 / 60} hours`);
-                this.scheduledDeletions.delete(message.id);
-            } catch (error) {
-                // Message might already be deleted or bot lost permissions
-                console.error(`Failed to delete message ${message.id}:`, error.message);
-                this.scheduledDeletions.delete(message.id);
+                if (data.message && data.message.deletable) {
+                    await data.message.delete();
+                }
+                this.allMessages.delete(messageId);
+            } catch (err) {
+                console.error(`Failed to delete old message ${messageId}:`, err.message);
+                this.allMessages.delete(messageId);
             }
-        }, delay);
-
-        this.scheduledDeletions.set(message.id, timeoutId);
-    }
-
-    /**
-     * Schedule deletion for an interaction reply
-     * @param {Interaction} interaction - Discord interaction object
-     * @param {number} delay - Delay in milliseconds (default: 6 hours)
-     */
-    async scheduleInteractionDelete(interaction, delay = this.deleteAfter) {
-        try {
-            // Fetch the interaction reply message
-            const message = await interaction.fetchReply();
-            this.scheduleDelete(message, delay);
-        } catch (error) {
-            console.error('Failed to schedule interaction delete:', error.message);
         }
+
+        console.log(`✓ Deleted ${messagesToDelete.length} old messages`);
     }
 
     /**
-     * Cancel scheduled deletion for a message
-     * @param {string} messageId - Message ID
+     * Legacy method for backwards compatibility
+     * @param {Message} message - Discord message object
      */
-    cancelDelete(messageId) {
-        if (this.scheduledDeletions.has(messageId)) {
-            clearTimeout(this.scheduledDeletions.get(messageId));
-            this.scheduledDeletions.delete(messageId);
-            console.log(`Cancelled deletion for message ${messageId}`);
-        }
+    scheduleDelete(message) {
+        // Extract userId from interaction or use a default
+        const userId = message.interaction?.user?.id || 'unknown';
+        this.trackMessage(message, userId);
     }
 
     /**
-     * Clear all scheduled deletions
+     * Get statistics
+     * @returns {object}
+     */
+    getStats() {
+        return {
+            activeSessions: this.userSessions.size,
+            trackedMessages: this.allMessages.size
+        };
+    }
+
+    /**
+     * Clear all timers and data
      */
     clearAll() {
-        for (const timeoutId of this.scheduledDeletions.values()) {
-            clearTimeout(timeoutId);
+        // Clear user session timers
+        for (const session of this.userSessions.values()) {
+            if (session.timeout) {
+                clearTimeout(session.timeout);
+            }
         }
-        this.scheduledDeletions.clear();
-        console.log('Cleared all scheduled message deletions');
-    }
+        this.userSessions.clear();
 
-    /**
-     * Get count of scheduled deletions
-     * @returns {number}
-     */
-    getScheduledCount() {
-        return this.scheduledDeletions.size;
+        // Clear global cleanup timer
+        if (this.globalCleanupTimer) {
+            clearInterval(this.globalCleanupTimer);
+            this.globalCleanupTimer = null;
+        }
+
+        this.allMessages.clear();
+        console.log('Cleared all message cleanup data');
     }
 }
 

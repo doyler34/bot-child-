@@ -11,6 +11,7 @@ const config = require('./config/config');
 const keys = require('./config/keys');
 const database = require('./database/database');
 const proxyServer = require('./proxy/server');
+const messageCleanup = require('./utils/messageCleanup');
 
 // Initialize Discord client with required intents
 const client = new Client({
@@ -128,6 +129,9 @@ client.once('ready', async () => {
     // Register slash commands with Discord
     await registerCommands();
     
+    // Start message cleanup system
+    messageCleanup.startGlobalCleanup(client);
+    
     console.log('─────────────────────────────────────────');
     console.log('Bot is now online and ready to receive commands!');
     console.log('─────────────────────────────────────────\n');
@@ -142,6 +146,9 @@ client.once('ready', async () => {
  * (Will be expanded in Phase 2+)
  */
 client.on('interactionCreate', async (interaction) => {
+    // Update user activity for message cleanup tracking
+    messageCleanup.updateUserActivity(interaction.user.id);
+    
     // Slash command handler
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
@@ -153,6 +160,14 @@ client.on('interactionCreate', async (interaction) => {
 
         try {
             await command.execute(interaction);
+            
+            // Track the command reply message
+            try {
+                const reply = await interaction.fetchReply();
+                messageCleanup.trackMessage(reply, interaction.user.id);
+            } catch (err) {
+                // Reply might be ephemeral or already deleted
+            }
         } catch (error) {
             console.error(`❌ Error executing command ${interaction.commandName}:`, error);
             
