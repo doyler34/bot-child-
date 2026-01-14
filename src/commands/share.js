@@ -43,8 +43,12 @@ module.exports = {
                         tmdbService.searchTVShows(query)
                     ]);
 
+                    // Ensure we have arrays (results might be in .results property)
+                    const movieArray = Array.isArray(movieResults) ? movieResults : (movieResults?.results || []);
+                    const tvArray = Array.isArray(tvResults) ? tvResults : (tvResults?.results || []);
+
                     // Combine and format results
-                    const movies = movieResults.slice(0, 12).map(item => {
+                    const movies = movieArray.slice(0, 12).map(item => {
                         const title = item.title;
                         const year = (item.release_date || '').split('-')[0] || 'N/A';
                         const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
@@ -54,7 +58,7 @@ module.exports = {
                         };
                     });
 
-                    const tvShows = tvResults.slice(0, 13).map(item => {
+                    const tvShows = tvArray.slice(0, 13).map(item => {
                         const title = item.name;
                         const year = (item.first_air_date || '').split('-')[0] || 'N/A';
                         const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
@@ -93,9 +97,14 @@ module.exports = {
             const [type, id] = selection.split('_');
             const itemId = parseInt(id);
 
+            // Validate selection
+            if (!type || !itemId || (type !== 'movie' && type !== 'tv')) {
+                throw new Error('Invalid selection');
+            }
+
             // Fetch details from TMDB
             let details;
-            let embed;
+            let embed = null;
 
             if (type === 'movie') {
                 details = await tmdbService.getMovieDetails(itemId);
@@ -220,6 +229,11 @@ module.exports = {
                 }
 
                 embed.addFields(fields);
+            }
+
+            // Ensure embed was created
+            if (!embed) {
+                throw new Error('Failed to create embed');
             }
 
             embed.setFooter({ 
