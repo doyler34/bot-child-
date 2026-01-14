@@ -323,6 +323,14 @@ class Paginator {
 
             // Handle number selection
             if (i.customId.startsWith(`${customId}_num_`)) {
+                // Defer the interaction immediately to prevent timeout
+                try {
+                    await i.deferUpdate();
+                } catch (err) {
+                    console.log('Failed to defer interaction:', err.message);
+                    return;
+                }
+                
                 // Parse the index from the customId
                 // Format is: {customId}_num_{index}
                 // Example: "popular_movie_num_1" -> split gives ["popular", "movie", "num", "1"]
@@ -335,7 +343,7 @@ class Paginator {
                     console.error('ERROR: selectedItem is undefined!');
                     console.error('Button:', i.customId, 'Index:', index, 'Position:', start + index, 'Total:', items.length);
                     try {
-                        await i.update({
+                        await i.editReply({
                             embeds: [embedBuilder.createErrorEmbed('Error', 'Could not find the selected item. Please try again.')],
                             components: []
                         });
