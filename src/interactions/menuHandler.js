@@ -385,7 +385,7 @@ class MenuHandler {
 
     async showPopularAnime(interaction) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferUpdate();
             const results = await jikanService.topAnime(1);
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
@@ -410,8 +410,14 @@ class MenuHandler {
                 return;
             }
 
+            const replyInteraction = {
+                ...interaction,
+                deferred: true,
+                editReply: interaction.editReply.bind(interaction)
+            };
+
             await paginator.paginateWithSelection(
-                interaction,
+                replyInteraction,
                 items,
                 {
                     itemsPerPage: 2,
@@ -427,7 +433,7 @@ class MenuHandler {
 
     async showTrendingAnime(interaction) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferUpdate();
             const results = await jikanService.trendingAnime(1);
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
@@ -452,8 +458,14 @@ class MenuHandler {
                 return;
             }
 
+            const replyInteraction = {
+                ...interaction,
+                deferred: true,
+                editReply: interaction.editReply.bind(interaction)
+            };
+
             await paginator.paginateWithSelection(
-                interaction,
+                replyInteraction,
                 items,
                 {
                     itemsPerPage: 2,

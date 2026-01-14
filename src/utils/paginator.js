@@ -359,7 +359,7 @@ class Paginator {
                         console.log('Interaction expired - please use a fresh /watch command');
                         collector.stop('expired');
                     } else {
-                        console.error('Error showing details:', err);
+                        console.error('Error showing details:', err?.stack || err?.message || err);
                     }
                 }
                 return;

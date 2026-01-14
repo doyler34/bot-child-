@@ -307,8 +307,6 @@ class DetailsHandler {
      */
     async showAnimeDirect(interaction, malId, title) {
         try {
-            await interaction.deferUpdate();
-
             if (!malId) {
                 throw new Error('Missing MAL id');
             }
@@ -341,19 +339,23 @@ class DetailsHandler {
             }
             rows.push(new ActionRowBuilder().addComponents(backButton));
 
-            const message = await interaction.editReply({
-                embeds: [embed],
-                components: rows
-            });
+            const message = interaction.replied || interaction.deferred
+                ? await interaction.editReply({ embeds: [embed], components: rows })
+                : await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
 
             messageCleanup.scheduleDelete(message);
         } catch (error) {
             console.error('Error showing anime direct links:', error);
-            const errorMsg = await interaction.editReply({
+            const payload = {
                 embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime links.')],
                 components: []
-            });
-            messageCleanup.scheduleDelete(errorMsg);
+            };
+            if (interaction.replied || interaction.deferred) {
+                const errorMsg = await interaction.editReply(payload);
+                messageCleanup.scheduleDelete(errorMsg);
+            } else {
+                await interaction.reply({ ...payload, ephemeral: true });
+            }
         }
     }
 }
