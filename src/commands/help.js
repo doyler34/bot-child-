@@ -17,38 +17,55 @@ module.exports = {
                 .setColor(config.embed.colors.info)
                 .setTitle('ℹ️ How to use ZipxMovies')
                 .setDescription([
-                    '**Quick start**',
-                    '• `/watch` → pick Search, Movies, or TV Shows.',
-                    '• Use number buttons to select a title, then choose a season/episode.',
-                    '• Stream buttons open provider links; you can always go back via the Back buttons.',
+                    '**🎬 Commands**',
+                    '• `/watch` → Browse movies, TV shows, and anime with interactive menus',
+                    '• `/search` → Quick search with autocomplete (type to see suggestions)',
+                    '• `/help` → Show this help message',
                     '',
-                    '**Lists & history**',
-                    '• ⭐ Watchlist: add/remove on detail pages; view in `/watch` → My Watchlist.',
-                    '• ▶️ Continue Watching: auto-tracks viewed items; clear via the Continue menu.',
+                    '**📺 How to Watch**',
+                    '1. Use `/watch` or `/search` to find content',
+                    '2. Click number buttons (1️⃣ 2️⃣) to select a title',
+                    '3. For TV/Anime: Choose season → Choose episode',
+                    '4. Click a provider button to start streaming',
                     '',
-                    '**Providers & proxy**',
-                    '• Providers: VidSrc and VidSrc Me (kept for lowest ads).',
-                    '• If a provider fails, try the other provider.',
-                    '• Links may be routed through a lightweight proxy to unwrap embeds. If a provider cannot be resolved, the bot falls back to a direct embed link.',
+                    '**🍥 Anime (BETA)**',
+                    '• Browse Popular/Trending anime or Search by title',
+                    '• All seasons automatically detected and grouped',
+                    '• Supports multiple providers (Cinetaro, Gojo, VidSrc)',
+                    '• Add to watchlist and track progress',
                     '',
-                    '**Anime**',
-                    '• Use `/watch` → TV Shows → Anime to browse anime titles quickly.',
+                    '**⭐ Watchlist & History**',
+                    '• Click "Add to Watchlist" on any title to save it',
+                    '• View your watchlist via `/watch` → My Watchlist',
+                    '• Continue Watching auto-tracks what you\'ve watched',
                     '',
-                    '**Tips**',
-                    '• If a menu expires, run `/watch` again.',
-                    '• Use the Back buttons to return to menus at any time.',
-                    '• For fewer ads, open links in your browser with an ad blocker; avoid the in-app browser if possible.'
+                    '**🛡️ Proxy & Ad Prevention**',
+                    '• Links route through our proxy to strip iframe ads',
+                    '• Most ads removed (only "play button" ads may remain)',
+                    '• **Still use ad blockers** (uBlock Origin recommended)',
+                    '• If a provider fails, try another provider button',
+                    '',
+                    '**🔐 Privacy**',
+                    '• All interactions are private (only you see them)',
+                    '• Auto-cleanup: messages deleted after 3 min of inactivity',
+                    '• Click "Dismiss" to manually close at any time',
+                    '',
+                    '**💡 Tips**',
+                    '• Use autocomplete search (`/search`) for faster results',
+                    '• Navigate with Back buttons to return to previous menus',
+                    '• Open stream links in browser (not in-app) for fewer ads',
+                    '• If menu expires, just run `/watch` again'
                 ].join('\n'))
-                .setFooter({ text: 'ZipxMovies • Powered by TMDB' })
+                .setFooter({ text: 'ZipxMovies • Powered by TMDB & Jikan' })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: 64 });
         } catch (error) {
             console.error('Help command error:', error);
             if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: '❌ Failed to load help. Please try again.', ephemeral: true });
+                await interaction.followUp({ content: '❌ Failed to load help. Please try again.', flags: 64 });
             } else {
-                await interaction.reply({ content: '❌ Failed to load help. Please try again.', ephemeral: true });
+                await interaction.reply({ content: '❌ Failed to load help. Please try again.', flags: 64 });
             }
         }
     }
