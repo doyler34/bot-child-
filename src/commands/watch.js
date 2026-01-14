@@ -14,7 +14,7 @@ module.exports = {
 
     async execute(interaction) {
         try {
-            await interaction.deferReply();
+            await interaction.deferReply({ ephemeral: true });
 
             // Show main menu
             const embed = new EmbedBuilder()
