@@ -448,11 +448,11 @@ class EmbedBuilderService {
             .setTitle(`🍥 ${anime.title || 'Anime'}`)
             .setTimestamp();
 
-        // Add large poster
+        // Add poster as thumbnail at the top
         if (anime.images?.jpg?.large_image_url) {
-            embed.setImage(anime.images.jpg.large_image_url);
+            embed.setThumbnail(anime.images.jpg.large_image_url);
         } else if (anime.images?.jpg?.image_url) {
-            embed.setImage(anime.images.jpg.image_url);
+            embed.setThumbnail(anime.images.jpg.image_url);
         }
 
         // Add description/synopsis
