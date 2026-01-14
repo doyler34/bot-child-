@@ -104,26 +104,37 @@ class GojoService {
 
             // Use first result (best match)
             const anime = searchResults[0];
-            const animeId = anime.id || anime.animeId;
+            const animeId = anime.id || anime.animeId || anime._id;
 
             if (!animeId) {
                 console.warn('[Gojo] No anime ID found in search results');
+                console.warn('[Gojo] First result:', JSON.stringify(anime));
                 return null;
             }
+
+            console.log(`[Gojo] Found anime ID: ${animeId} for "${title}"`);
 
             // Step 2: Get episodes
             const episodes = await this.getEpisodes(animeId);
             if (!episodes || episodes.length === 0) {
+                console.warn(`[Gojo] No episodes found for anime ID: ${animeId}`);
                 return null;
             }
 
+            console.log(`[Gojo] Found ${episodes.length} episodes for anime ID: ${animeId}`);
+
             // Find the requested episode
-            const targetEpisode = episodes.find(ep => 
-                ep.episode === episode || ep.episodeNumber === episode || ep.number === episode
-            );
+            // Try multiple field names and also try index-based (episodes are usually 1-indexed)
+            const targetEpisode = episodes.find(ep => {
+                const epNum = ep.episode || ep.episodeNumber || ep.number || ep.ep || ep.epNum;
+                return epNum === episode || epNum === episode.toString() || parseInt(epNum) === episode;
+            }) || episodes[episode - 1]; // Fallback to array index (0-indexed, so episode-1)
 
             if (!targetEpisode) {
-                console.warn(`[Gojo] Episode ${episode} not found`);
+                console.warn(`[Gojo] Episode ${episode} not found. Available episodes: ${episodes.length}`);
+                if (episodes.length > 0) {
+                    console.warn(`[Gojo] First episode sample:`, JSON.stringify(episodes[0]));
+                }
                 return null;
             }
 
@@ -149,21 +160,35 @@ class GojoService {
             // Step 4: Get stream URLs
             const streamData = await this.getStreamUrls(streamUrl);
             if (!streamData) {
+                console.warn('[Gojo] No stream data returned');
                 return null;
             }
 
-            // Return the first available stream URL (prefer highest quality)
-            const sources = streamData.sources || streamData.streams || [];
+            // Handle different response formats
+            let sources = [];
+            if (Array.isArray(streamData)) {
+                sources = streamData;
+            } else if (streamData.sources) {
+                sources = Array.isArray(streamData.sources) ? streamData.sources : [];
+            } else if (streamData.streams) {
+                sources = Array.isArray(streamData.streams) ? streamData.streams : [];
+            } else if (streamData.url || streamData.stream) {
+                // Single stream URL
+                return streamData.url || streamData.stream;
+            }
+
             if (sources.length > 0) {
                 // Sort by quality (1080p > 720p > 480p, etc.)
                 const sorted = sources.sort((a, b) => {
-                    const qualityA = parseInt(a.quality || '0');
-                    const qualityB = parseInt(b.quality || '0');
+                    const qualityA = parseInt(a.quality || a.resolution || '0');
+                    const qualityB = parseInt(b.quality || b.resolution || '0');
                     return qualityB - qualityA;
                 });
-                return sorted[0].url || sorted[0].stream || null;
+                const bestStream = sorted[0];
+                return bestStream.url || bestStream.stream || bestStream.src || bestStream.link || null;
             }
 
+            console.warn('[Gojo] No stream sources found in response');
             return null;
         } catch (error) {
             console.error('[Gojo] Failed to get episode stream URL:', error);
