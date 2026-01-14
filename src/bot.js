@@ -110,6 +110,7 @@ client.once('ready', async () => {
     console.log('┌─────────────────────────────────────────┐');
     console.log('│     Discord Streaming Bot - Ready!     │');
     console.log('└─────────────────────────────────────────┘');
+    console.log(`🕐 CODE TIMESTAMP: ${new Date().toISOString()} [ANIME_LOGGING_ENABLED]`);
     console.log(`\n✓ Logged in as: ${client.user.tag}`);
     console.log(`✓ Bot ID: ${client.user.id}`);
     console.log(`✓ Servers: ${client.guilds.cache.size}`);
@@ -173,7 +174,7 @@ client.on('interactionCreate', async (interaction) => {
         const { customId } = interaction;
         
         // Handle all menu-related buttons
-        if (customId.startsWith('menu_') || customId.startsWith('movies_') || customId.startsWith('shows_') || customId === 'back_main') {
+        if (customId.startsWith('menu_') || customId.startsWith('movies_') || customId.startsWith('shows_') || customId.startsWith('anime_') || customId === 'back_main') {
             const menuHandler = require('./interactions/menuHandler');
             await menuHandler.handle(interaction);
             return;

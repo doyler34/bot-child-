@@ -15,6 +15,9 @@ const jikanService = require('../services/jikan.service');
 class MenuHandler {
     async handle(interaction) {
         const { customId } = interaction;
+        console.log(`[MenuHandler] ============ HANDLE CALLED ============`);
+        console.log(`[MenuHandler] customId: ${customId}`);
+        console.log(`[MenuHandler] user: ${interaction.user?.tag || 'unknown'}`);
 
         try {
             if (customId === 'menu_search') {
