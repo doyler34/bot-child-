@@ -349,63 +349,29 @@ class DetailsHandler {
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
             
-            // Check for relations (sequels/side stories/specials) - these are like "seasons"
-            const relations = anime.relations || [];
-            console.log(`[Anime] Found ${relations.length} relations for ${anime.title}`);
+            console.log(`[Anime] ${anime.title} has ${episodeCount} episodes`);
             
-            // Extract all sequel-type relations (sequels, side stories, etc.)
-            const relatedSeries = [];
-            relations.forEach(rel => {
-                if (rel.relation === 'Sequel' || rel.relation === 'Prequel' || rel.relation === 'Side story' || rel.relation === 'Alternative version') {
-                    const entries = rel.entry || [];
-                    entries.forEach(entry => {
-                        if (entry.type === 'anime' && entry.mal_id) {
-                            relatedSeries.push({
-                                malId: entry.mal_id,
-                                name: entry.name,
-                                relation: rel.relation
-                            });
-                        }
-                    });
-                }
-            });
-            
-            console.log(`[Anime] Found ${relatedSeries.length} related anime series`);
-            
-            // If we have related series or more than 24 episodes, show season/part selector
-            if (relatedSeries.length > 0 || episodeCount > 24) {
-                const seasons = [];
+            // If more than 24 episodes, show part selector first (like TV show seasons)
+            if (episodeCount > 24) {
+                const parts = [];
+                const episodesPerPart = 24;
+                const numParts = Math.ceil(episodeCount / episodesPerPart);
                 
-                // Add main series episodes (split into parts if > 24 episodes)
-                const episodesPerSeason = 24;
-                const numSeasons = Math.ceil(episodeCount / episodesPerSeason);
-                
-                for (let s = 1; s <= Math.min(numSeasons, 25); s++) {
-                    const startEp = (s - 1) * episodesPerSeason + 1;
-                    const endEp = Math.min(s * episodesPerSeason, episodeCount);
-                    seasons.push({
-                        label: `${anime.title} - Episodes ${startEp}-${endEp}`,
-                        description: `${endEp - startEp + 1} episodes`,
-                        value: `anime_season_${malId}_${s}`,
+                for (let p = 1; p <= Math.min(numParts, 25); p++) {
+                    const startEp = (p - 1) * episodesPerPart + 1;
+                    const endEp = Math.min(p * episodesPerPart, episodeCount);
+                    parts.push({
+                        label: `Episodes ${startEp}-${endEp}`,
+                        description: `Part ${p} - ${endEp - startEp + 1} episodes`,
+                        value: `anime_season_${malId}_${p}`,
                         emoji: '📺'
                     });
                 }
-                
-                // Add related series as separate options (up to Discord's 25 option limit)
-                const availableSlots = 25 - seasons.length;
-                relatedSeries.slice(0, availableSlots).forEach((series) => {
-                    seasons.push({
-                        label: series.name,
-                        description: `${series.relation} - Click to view episodes`,
-                        value: `anime_series_${series.malId}`,
-                        emoji: series.relation === 'Sequel' ? '▶️' : '🔗'
-                    });
-                });
 
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId(`select_anime_season_${malId}`)
-                    .setPlaceholder('Choose a part/season')
-                    .addOptions(seasons.slice(0, 25)); // Discord limit
+                    .setPlaceholder('Choose a part to watch')
+                    .addOptions(parts);
 
                 const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 

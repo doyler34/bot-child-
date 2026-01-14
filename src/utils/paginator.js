@@ -238,9 +238,10 @@ class Paginator {
             pageItems.forEach((item, index) => {
                 const numberEmoji = ['1️⃣', '2️⃣'][index];
                 const itemTitle = item.title || item.name;
-                const year = (item.release_date || item.first_air_date || '').split('-')[0];
-                const rating = item.vote_average ? `${item.vote_average.toFixed(1)}` : 'N/A';
-                const typeEmoji = (item.media_type === 'movie' || item.title) ? '🎬' : '📺';
+                const year = (item.release_date || item.first_air_date || item.year || '').toString().split('-')[0];
+                // Handle both TMDB (vote_average) and Jikan/MAL (score) ratings
+                const rating = item.score ? `${item.score.toFixed(1)}` : (item.vote_average ? `${item.vote_average.toFixed(1)}` : 'N/A');
+                const typeEmoji = item.mal_id ? '🍥' : ((item.media_type === 'movie' || item.title) ? '🎬' : '📺');
 
                 // Create minimal embed
                 const embed = new EmbedBuilder()
