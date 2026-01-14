@@ -62,7 +62,10 @@ module.exports = {
                             ? await tmdbService.searchMovies(query)
                             : await tmdbService.searchTVShows(query);
                         
-                        results = tmdbResults.slice(0, 25).map(item => {
+                        // Ensure we have an array (results might be in .results property)
+                        const resultsArray = Array.isArray(tmdbResults) ? tmdbResults : (tmdbResults?.results || []);
+                        
+                        results = resultsArray.slice(0, 25).map(item => {
                             const title = item.title || item.name;
                             const year = (item.release_date || item.first_air_date || '').split('-')[0] || 'N/A';
                             const rating = item.vote_average ? item.vote_average.toFixed(1) : 'N/A';
