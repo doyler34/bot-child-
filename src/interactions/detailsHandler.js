@@ -308,14 +308,18 @@ class DetailsHandler {
      */
     async showAnimeEpisodeSelector(interaction, malId, title) {
         try {
-            // Defer immediately to prevent timeout
+            // Don't defer if already deferred/replied (e.g., from paginator)
             if (!interaction.deferred && !interaction.replied) {
                 await interaction.deferUpdate();
             }
 
-            if (!malId) {
-                throw new Error('Missing MAL id');
+            if (!malId || isNaN(malId)) {
+                console.error(`Invalid MAL ID: ${malId}`);
+                throw new Error('Missing or invalid MAL id');
             }
+
+            // Ensure malId is a number
+            malId = parseInt(malId, 10);
 
             // Fetch full anime details from Jikan
             let anime = null;
@@ -331,7 +335,8 @@ class DetailsHandler {
 
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
-            const maxEpisodes = Math.min(episodeCount, 25); // Discord limit
+            // Discord limit is 25 options max - show first 24 episodes + a note if more exist
+            const maxEpisodes = Math.min(episodeCount, 24);
 
             // Create episode selection menu
             const episodes = [];
@@ -344,11 +349,11 @@ class DetailsHandler {
                 });
             }
 
-            // If more than 25 episodes, add a note
-            if (episodeCount > 25) {
+            // If more than 24 episodes, add a note (keeping total at 25)
+            if (episodeCount > 24) {
                 episodes.push({
-                    label: `More episodes available (${episodeCount} total)`,
-                    description: 'This anime has many episodes',
+                    label: `More episodes (${episodeCount} total)`,
+                    description: `Episodes 1-24 shown. Use search for others.`,
                     value: `anime_ep_${malId}_more`,
                     emoji: '➕'
                 });
@@ -396,14 +401,19 @@ class DetailsHandler {
      */
     async showAnimeEpisodeDetails(interaction, malId, episode) {
         try {
-            // Defer immediately to prevent timeout
+            // Don't defer if already deferred/replied
             if (!interaction.deferred && !interaction.replied) {
                 await interaction.deferUpdate();
             }
 
-            if (!malId || !episode) {
-                throw new Error('Missing MAL id or episode number');
+            if (!malId || isNaN(malId) || !episode || isNaN(episode)) {
+                console.error(`Invalid parameters - malId: ${malId}, episode: ${episode}`);
+                throw new Error('Missing or invalid MAL id or episode number');
             }
+
+            // Ensure both are numbers
+            malId = parseInt(malId, 10);
+            episode = parseInt(episode, 10);
 
             // Fetch anime details
             let anime = null;

@@ -207,14 +207,27 @@ client.on('interactionCreate', async (interaction) => {
 
         // Handle back_to_anime_eps button
         if (customId.startsWith('back_to_anime_eps_')) {
-            const malId = parseInt(customId.split('_')[3]);
+            // Extract MAL ID: "back_to_anime_eps_{malId}"
+            const parts = customId.split('_');
+            const malId = parseInt(parts[parts.length - 1]); // Last part is MAL ID
+            
+            if (isNaN(malId)) {
+                console.error(`Failed to parse MAL ID from customId: ${customId}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid anime ID. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
             const detailsHandler = require('./interactions/detailsHandler');
-            // Get title from Jikan (we'll need to fetch it)
+            // Get title from Jikan
             const jikanService = require('./services/jikan.service');
             try {
                 const anime = await jikanService.getAnimeById(malId);
                 await detailsHandler.showAnimeEpisodeSelector(interaction, malId, anime?.title);
             } catch (error) {
+                console.error('Error fetching anime for back button:', error);
                 await detailsHandler.showAnimeEpisodeSelector(interaction, malId, null);
             }
             return;
@@ -319,7 +332,19 @@ client.on('interactionCreate', async (interaction) => {
 
         // Handle anime episode selection
         if (customId.startsWith('select_anime_ep_')) {
-            const malId = parseInt(customId.split('_')[3]);
+            // Extract MAL ID from customId: "select_anime_ep_{malId}"
+            const parts = customId.split('_');
+            const malId = parseInt(parts[3]);
+            
+            if (isNaN(malId)) {
+                console.error(`Failed to parse MAL ID from customId: ${customId}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid anime ID. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
             const selectedValue = values[0];
             
             if (selectedValue.includes('_more')) {
@@ -331,7 +356,19 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
             
-            const episode = parseInt(selectedValue.split('_')[2]);
+            // Extract episode from value: "anime_ep_{malId}_{episode}"
+            const valueParts = selectedValue.split('_');
+            const episode = parseInt(valueParts[valueParts.length - 1]); // Last part is episode number
+            
+            if (isNaN(episode)) {
+                console.error(`Failed to parse episode from value: ${selectedValue}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid episode number. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
             await detailsHandler.showAnimeEpisodeDetails(interaction, malId, episode);
             return;
         }
