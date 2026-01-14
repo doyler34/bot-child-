@@ -384,10 +384,9 @@ class MenuHandler {
 
     async showPopularAnime(interaction) {
         try {
-            await interaction.deferReply();
-            // TMDB popular TV often lacks anime; use a keyword search fallback
-            const results = await tmdbService.searchTVShows('anime');
-            const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
+            await interaction.deferUpdate();
+            const results = await tmdbService.discoverAnime('popularity.desc');
+            const items = (results?.results || []).slice(0, 20).map(item => ({
                 ...item,
                 media_type: 'tv'
             }));
@@ -423,10 +422,10 @@ class MenuHandler {
 
     async showTrendingAnime(interaction) {
         try {
-            await interaction.deferReply();
-            // Use keyword search as a trending-like fallback for anime
-            const results = await tmdbService.searchTVShows('anime trending');
-            const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
+            await interaction.deferUpdate();
+            // Use discover with recent air date as a proxy for trending
+            const results = await tmdbService.discoverAnime('first_air_date.desc');
+            const items = (results?.results || []).slice(0, 20).map(item => ({
                 ...item,
                 media_type: 'tv'
             }));

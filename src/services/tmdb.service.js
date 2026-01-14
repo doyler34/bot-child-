@@ -281,6 +281,20 @@ class TMDBService {
     }
 
     /**
+     * Discover anime TV (JP origin, animation genre)
+     * @param {string} sortBy - TMDB sort_by value (e.g., popularity.desc)
+     * @param {number} page - Page number (default: 1)
+     */
+    async discoverAnime(sortBy = 'popularity.desc', page = 1) {
+        return await this._request('/discover/tv', {
+            with_origin_country: 'JP',
+            with_genres: '16',
+            sort_by: sortBy,
+            page
+        });
+    }
+
+    /**
      * Build complete image URL
      * @param {string} path - Image path from TMDB
      * @param {string} size - Image size (w92, w154, w185, w342, w500, w780, original)
