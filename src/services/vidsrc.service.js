@@ -282,8 +282,9 @@ class VidSrcService {
      * @param {number} episode
      * @returns {Promise<Array>}
      */
-    async getAllTVLinksWithAnime(tmdbId, season, episode) {
+    async getAllTVLinksWithAnime(tmdbId, season, episode, opts = {}) {
         const baseLinks = this.getAllTVLinks(tmdbId, season, episode);
+        const malId = opts.malId;
 
         // Find anime-capable providers
         const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode);
@@ -292,27 +293,24 @@ class VidSrcService {
         }
 
         try {
-            const show = await tmdbService.getTVShowDetails(tmdbId);
-            const title = show?.name;
-            const year = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
-            const { malId } = await aniListService.findIds(title, year);
+            let resolvedMalId = malId;
+
+            // If no MAL from upstream, try resolving from TMDB -> AniList
+            if (!resolvedMalId && tmdbId) {
+                const show = await tmdbService.getTVShowDetails(tmdbId);
+                const title = show?.name;
+                const year = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
+                const ids = await aniListService.findIds(title, year);
+                resolvedMalId = ids.malId;
+            }
 
             const animeLinks = animeProviders
                 .map(provider => {
                     if (provider.mode === 'mal') {
-                        if (!malId) return null;
+                        if (!resolvedMalId) return null;
                         return {
                             name: provider.name,
-                            url: `${provider.baseUrl.replace(/\/$/, '')}/${malId}/${episode}`,
-                            emoji: provider.emoji
-                        };
-                    }
-                    if (provider.mode === 'title') {
-                        const slug = this._slugifyTitle(title, year);
-                        if (!slug) return null;
-                        return {
-                            name: provider.name,
-                            url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
+                            url: `${provider.baseUrl.replace(/\/$/, '')}/${resolvedMalId}/${episode}`,
                             emoji: provider.emoji
                         };
                     }

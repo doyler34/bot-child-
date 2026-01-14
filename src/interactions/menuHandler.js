@@ -10,6 +10,7 @@ const paginator = require('../utils/paginator');
 const messageCleanup = require('../utils/messageCleanup');
 const watchlistService = require('../database/watchlist.service');
 const continueWatchingService = require('../database/continueWatching.service');
+const jikanService = require('../services/jikan.service');
 
 class MenuHandler {
     async handle(interaction) {
@@ -385,9 +386,13 @@ class MenuHandler {
     async showPopularAnime(interaction) {
         try {
             await interaction.deferUpdate();
-            const results = await tmdbService.discoverAnime('popularity.desc');
-            const items = (results?.results || []).slice(0, 20).map(item => ({
-                ...item,
+            const results = await jikanService.topAnime(1);
+            const items = results.slice(0, 20).map(item => ({
+                id: item.mal_id,
+                mal_id: item.mal_id,
+                title: item.title,
+                name: item.title,
+                poster_path: item.images?.jpg?.large_image_url || null,
                 media_type: 'tv'
             }));
 
@@ -423,10 +428,13 @@ class MenuHandler {
     async showTrendingAnime(interaction) {
         try {
             await interaction.deferUpdate();
-            // Use discover with recent air date as a proxy for trending
-            const results = await tmdbService.discoverAnime('first_air_date.desc');
-            const items = (results?.results || []).slice(0, 20).map(item => ({
-                ...item,
+            const results = await jikanService.trendingAnime(1);
+            const items = results.slice(0, 20).map(item => ({
+                id: item.mal_id,
+                mal_id: item.mal_id,
+                title: item.title,
+                name: item.title,
+                poster_path: item.images?.jpg?.large_image_url || null,
                 media_type: 'tv'
             }));
 
@@ -484,10 +492,13 @@ class MenuHandler {
                     media_type: 'tv'
                 }));
             } else if (type === 'anime') {
-                results = await tmdbService.searchTVShows(query);
-                const filtered = this._filterAnime(results?.results || []);
-                items = filtered.slice(0, 20).map(item => ({
-                    ...item,
+                const jikanResults = await jikanService.searchAnime(query);
+                items = jikanResults.slice(0, 20).map(item => ({
+                    id: item.mal_id,
+                    mal_id: item.mal_id,
+                    title: item.title,
+                    name: item.title,
+                    poster_path: item.images?.jpg?.large_image_url || null,
                     media_type: 'tv'
                 }));
             } else {

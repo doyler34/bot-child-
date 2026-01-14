@@ -246,7 +246,9 @@ class DetailsHandler {
             }
             
             // Get all streaming links for this episode (including anime providers)
-            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(tvId, season, episode);
+            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(tvId, season, episode, {
+                malId: episodeData?.mal_id || show?.mal_id
+            });
             
             // Create buttons for each provider
             const streamButtons = streamLinks.map(link => 
