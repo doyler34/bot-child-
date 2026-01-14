@@ -366,7 +366,16 @@ class MenuHandler {
                 .setDescription(`No results found for "${query}". Try a different search term.`)
                 .setTimestamp();
 
-            const noResultsMsg = await interaction.editReply({ embeds: [embed] });
+            const backRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('back_main')
+                        .setLabel('Back to Menu')
+                        .setEmoji('⬅️')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            const noResultsMsg = await interaction.editReply({ embeds: [embed], components: [backRow] });
             messageCleanup.scheduleDelete(noResultsMsg);
             return;
         }
