@@ -402,6 +402,8 @@ class MenuHandler {
                 mal_id: item.mal_id,
                 title: item.title,
                 name: item.title,
+                score: item.score || null, // MAL rating
+                year: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
                 // Full image URL from Jikan; paginator will use it directly
                 poster_path: item.images?.jpg?.large_image_url || null,
                 media_type: 'tv'
@@ -480,6 +482,8 @@ class MenuHandler {
                 mal_id: item.mal_id,
                 title: item.title,
                 name: item.title,
+                score: item.score || null, // MAL rating
+                year: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
                 poster_path: item.images?.jpg?.large_image_url || null,
                 media_type: 'tv'
             }));
@@ -575,6 +579,8 @@ class MenuHandler {
                     mal_id: item.mal_id,
                     title: item.title,
                     name: item.title,
+                    score: item.score || null, // MAL rating
+                    year: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : null),
                     poster_path: item.images?.jpg?.large_image_url || null,
                     media_type: 'tv'
                 }));
