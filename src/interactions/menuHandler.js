@@ -384,9 +384,15 @@ class MenuHandler {
     }
 
     async showPopularAnime(interaction) {
+        console.log('[MenuHandler] showPopularAnime called');
         try {
+            console.log('[MenuHandler] Deferring update...');
             await interaction.deferUpdate();
+            
+            console.log('[MenuHandler] Fetching from Jikan...');
             const results = await jikanService.topAnime(1);
+            console.log(`[MenuHandler] Jikan returned ${results?.length || 0} results`);
+            
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
                 mal_id: item.mal_id,
@@ -396,7 +402,10 @@ class MenuHandler {
                 media_type: 'tv'
             }));
 
+            console.log(`[MenuHandler] Mapped to ${items.length} items`);
+
             if (!items.length) {
+                console.log('[MenuHandler] No items, showing empty message');
                 const embed = new EmbedBuilder()
                     .setColor(config.embed.colors.warning)
                     .setTitle('🍥 No Anime Found')
@@ -416,8 +425,7 @@ class MenuHandler {
                 editReply: interaction.editReply.bind(interaction)
             };
 
-            console.log(`Anime popular fetched ${items.length} items`);
-
+            console.log('[MenuHandler] Calling paginator...');
             await paginator.paginateWithSelection(
                 replyInteraction,
                 items,
@@ -427,16 +435,42 @@ class MenuHandler {
                     title: '⭐ Popular Anime'
                 }
             );
+            console.log('[MenuHandler] Paginator completed');
         } catch (error) {
-            console.error('Popular anime error:', error?.stack || error?.message || error);
-            await this._sendError(interaction, 'Failed to load popular anime.');
+            console.error('[MenuHandler] ========== POPULAR ANIME ERROR ==========');
+            console.error('[MenuHandler] Error message:', error?.message);
+            console.error('[MenuHandler] Error stack:', error?.stack);
+            console.error('[MenuHandler] Full error:', error);
+            console.error('[MenuHandler] ==========================================');
+            
+            try {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.error)
+                    .setTitle('❌ Error')
+                    .setDescription('Failed to load popular anime. Please try again.')
+                    .setTimestamp();
+                
+                const backRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('back_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+                );
+                
+                await interaction.editReply({ embeds: [embed], components: [backRow] });
+            } catch (replyError) {
+                console.error('[MenuHandler] Failed to send error message:', replyError);
+            }
         }
     }
 
     async showTrendingAnime(interaction) {
+        console.log('[MenuHandler] showTrendingAnime called');
         try {
+            console.log('[MenuHandler] Deferring update...');
             await interaction.deferUpdate();
+            
+            console.log('[MenuHandler] Fetching from Jikan...');
             const results = await jikanService.trendingAnime(1);
+            console.log(`[MenuHandler] Jikan returned ${results?.length || 0} results`);
+            
             const items = results.slice(0, 20).map(item => ({
                 id: item.mal_id,
                 mal_id: item.mal_id,
@@ -446,7 +480,10 @@ class MenuHandler {
                 media_type: 'tv'
             }));
 
+            console.log(`[MenuHandler] Mapped to ${items.length} items`);
+
             if (!items.length) {
+                console.log('[MenuHandler] No items, showing empty message');
                 const embed = new EmbedBuilder()
                     .setColor(config.embed.colors.warning)
                     .setTitle('🍥 No Anime Found')
@@ -466,8 +503,7 @@ class MenuHandler {
                 editReply: interaction.editReply.bind(interaction)
             };
 
-            console.log(`Anime trending fetched ${items.length} items`);
-
+            console.log('[MenuHandler] Calling paginator...');
             await paginator.paginateWithSelection(
                 replyInteraction,
                 items,
@@ -477,9 +513,29 @@ class MenuHandler {
                     title: '🔥 Trending Anime'
                 }
             );
+            console.log('[MenuHandler] Paginator completed');
         } catch (error) {
-            console.error('Trending anime error:', error?.stack || error?.message || error);
-            await this._sendError(interaction, 'Failed to load trending anime.');
+            console.error('[MenuHandler] ========== TRENDING ANIME ERROR ==========');
+            console.error('[MenuHandler] Error message:', error?.message);
+            console.error('[MenuHandler] Error stack:', error?.stack);
+            console.error('[MenuHandler] Full error:', error);
+            console.error('[MenuHandler] ==========================================');
+            
+            try {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.error)
+                    .setTitle('❌ Error')
+                    .setDescription('Failed to load trending anime. Please try again.')
+                    .setTimestamp();
+                
+                const backRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('back_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+                );
+                
+                await interaction.editReply({ embeds: [embed], components: [backRow] });
+            } catch (replyError) {
+                console.error('[MenuHandler] Failed to send error message:', replyError);
+            }
         }
     }
 
@@ -508,7 +564,9 @@ class MenuHandler {
                     media_type: 'tv'
                 }));
             } else if (type === 'anime') {
+                console.log(`[MenuHandler] Anime search for "${query}"`);
                 const jikanResults = await jikanService.searchAnime(query);
+                console.log(`[MenuHandler] Jikan search returned ${jikanResults?.length || 0} results`);
                 items = jikanResults.slice(0, 20).map(item => ({
                     id: item.mal_id,
                     mal_id: item.mal_id,
@@ -517,6 +575,7 @@ class MenuHandler {
                     poster_path: item.images?.jpg?.large_image_url || null,
                     media_type: 'tv'
                 }));
+                console.log(`[MenuHandler] Mapped to ${items.length} items`);
             } else {
                 results = await tmdbService.searchMulti(query);
                 // Multi search already includes media_type, but filter out non-movie/tv results
@@ -556,8 +615,31 @@ class MenuHandler {
                 }
             );
         } catch (error) {
-            console.error('Search submit error:', error?.stack || error?.message || error);
-            await this._sendError(interaction, 'Failed to load search results.');
+            console.error('[MenuHandler] ========== SEARCH ERROR ==========');
+            console.error('[MenuHandler] Error message:', error?.message);
+            console.error('[MenuHandler] Error stack:', error?.stack);
+            console.error('[MenuHandler] Full error:', error);
+            console.error('[MenuHandler] ==========================================');
+            
+            try {
+                const embed = new EmbedBuilder()
+                    .setColor(config.embed.colors.error)
+                    .setTitle('❌ Error')
+                    .setDescription('Failed to load search results. Please try again.')
+                    .setTimestamp();
+                
+                const backRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('back_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+                );
+                
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply({ embeds: [embed], components: [backRow] });
+                } else {
+                    await interaction.reply({ embeds: [embed], components: [backRow], ephemeral: true });
+                }
+            } catch (replyError) {
+                console.error('[MenuHandler] Failed to send error message:', replyError);
+            }
         }
     }
 
