@@ -443,9 +443,11 @@ class EmbedBuilderService {
      * Create detailed anime card from Jikan data
      */
     createDetailedAnimeCard(anime) {
+        // Add rating to title if available
+        const rating = anime.score ? ` ⭐ ${anime.score.toFixed(1)}` : '';
         const embed = new EmbedBuilder()
             .setColor(config.embed.colors.primary)
-            .setTitle(`🍥 ${anime.title || 'Anime'}`)
+            .setTitle(`🍥 ${anime.title || 'Anime'}${rating}`)
             .setTimestamp();
 
         // Add poster as thumbnail at the top

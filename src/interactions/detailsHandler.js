@@ -349,29 +349,70 @@ class DetailsHandler {
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
             
-            console.log(`[Anime] ${anime.title} has ${episodeCount} episodes`);
+            // Check for sequels/prequels (separate seasons)
+            const relations = anime.relations || [];
+            const sequels = [];
+            relations.forEach(rel => {
+                if (rel.relation === 'Sequel') {
+                    const entries = rel.entry || [];
+                    entries.forEach(entry => {
+                        if (entry.type === 'anime' && entry.mal_id) {
+                            sequels.push({
+                                malId: entry.mal_id,
+                                name: entry.name,
+                                relation: rel.relation
+                            });
+                        }
+                    });
+                }
+            });
             
-            // If more than 24 episodes, show part selector first (like TV show seasons)
-            if (episodeCount > 24) {
-                const parts = [];
-                const episodesPerPart = 24;
-                const numParts = Math.ceil(episodeCount / episodesPerPart);
+            console.log(`[Anime] ${anime.title} has ${episodeCount} episodes and ${sequels.length} sequels`);
+            
+            // If we have sequels OR more than 24 episodes, show selector
+            if (sequels.length > 0 || episodeCount > 24) {
+                const options = [];
                 
-                for (let p = 1; p <= Math.min(numParts, 25); p++) {
-                    const startEp = (p - 1) * episodesPerPart + 1;
-                    const endEp = Math.min(p * episodesPerPart, episodeCount);
-                    parts.push({
-                        label: `Episodes ${startEp}-${endEp}`,
-                        description: `Part ${p} - ${endEp - startEp + 1} episodes`,
-                        value: `anime_season_${malId}_${p}`,
+                // Add this season's episodes (grouped if >24 episodes)
+                if (episodeCount > 24) {
+                    const episodesPerPart = 24;
+                    const numParts = Math.ceil(episodeCount / episodesPerPart);
+                    
+                    for (let p = 1; p <= Math.min(numParts, 20); p++) {
+                        const startEp = (p - 1) * episodesPerPart + 1;
+                        const endEp = Math.min(p * episodesPerPart, episodeCount);
+                        options.push({
+                            label: `Episodes ${startEp}-${endEp}`,
+                            description: `${anime.title} - Part ${p}`,
+                            value: `anime_season_${malId}_${p}`,
+                            emoji: '📺'
+                        });
+                    }
+                } else {
+                    // Add this season as a single option
+                    options.push({
+                        label: anime.title,
+                        description: `Episodes 1-${episodeCount}`,
+                        value: `anime_season_${malId}_1`,
                         emoji: '📺'
                     });
                 }
+                
+                // Add sequels (other seasons)
+                const availableSlots = 25 - options.length;
+                sequels.slice(0, availableSlots).forEach((sequel) => {
+                    options.push({
+                        label: sequel.name,
+                        description: 'Next Season - Click to view',
+                        value: `anime_series_${sequel.malId}`,
+                        emoji: '▶️'
+                    });
+                });
 
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId(`select_anime_season_${malId}`)
-                    .setPlaceholder('Choose a part to watch')
-                    .addOptions(parts);
+                    .setPlaceholder('Choose a season/part to watch')
+                    .addOptions(options.slice(0, 25));
 
                 const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 
@@ -399,7 +440,7 @@ class DetailsHandler {
                 return;
             }
 
-            // If 24 or fewer episodes, show direct episode selector
+            // If 24 or fewer episodes and no sequels, show direct episode selector
             const episodes = [];
             for (let i = 1; i <= episodeCount; i++) {
                 episodes.push({
