@@ -27,15 +27,6 @@ class VidSrcService {
                 slug: 'vidsrcme',
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
-            },
-            // Anime-only provider (MAL id)
-            {
-                name: 'AnimEmbed',
-                slug: 'animembed',
-                baseUrl: 'http://animembed.com/embed',
-                emoji: '🍥',
-                types: ['tv'],
-                mode: 'mal'
             }
         ];
 
@@ -382,7 +373,8 @@ class VidSrcService {
                     slug: p.slug,
                     baseUrl: p.baseUrl,
                     emoji: p.emoji || '🍥',
-                    types: Array.isArray(p.types) ? p.types : []
+                    types: Array.isArray(p.types) ? p.types : [],
+                    mode: p.mode || undefined
                 }));
         } catch (err) {
             console.warn('Failed to parse ANIME_PROVIDERS:', err.message);
