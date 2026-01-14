@@ -384,7 +384,7 @@ class MenuHandler {
 
     async showPopularAnime(interaction) {
         try {
-            await interaction.deferUpdate();
+            await interaction.deferReply();
             // TMDB popular TV often lacks anime; use a keyword search fallback
             const results = await tmdbService.searchTVShows('anime');
             const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
@@ -406,14 +406,8 @@ class MenuHandler {
                 return;
             }
 
-            const replyInteraction = {
-                ...interaction,
-                deferred: true,
-                editReply: interaction.editReply.bind(interaction)
-            };
-
             await paginator.paginateWithSelection(
-                replyInteraction,
+                interaction,
                 items,
                 {
                     itemsPerPage: 2,
@@ -429,7 +423,7 @@ class MenuHandler {
 
     async showTrendingAnime(interaction) {
         try {
-            await interaction.deferUpdate();
+            await interaction.deferReply();
             // Use keyword search as a trending-like fallback for anime
             const results = await tmdbService.searchTVShows('anime trending');
             const items = this._filterAnime(results?.results || []).slice(0, 20).map(item => ({
@@ -451,14 +445,8 @@ class MenuHandler {
                 return;
             }
 
-            const replyInteraction = {
-                ...interaction,
-                deferred: true,
-                editReply: interaction.editReply.bind(interaction)
-            };
-
             await paginator.paginateWithSelection(
-                replyInteraction,
+                interaction,
                 items,
                 {
                     itemsPerPage: 2,
