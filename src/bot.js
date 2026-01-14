@@ -205,6 +205,21 @@ client.on('interactionCreate', async (interaction) => {
             return;
         }
 
+        // Handle back_to_anime_eps button
+        if (customId.startsWith('back_to_anime_eps_')) {
+            const malId = parseInt(customId.split('_')[3]);
+            const detailsHandler = require('./interactions/detailsHandler');
+            // Get title from Jikan (we'll need to fetch it)
+            const jikanService = require('./services/jikan.service');
+            try {
+                const anime = await jikanService.getAnimeById(malId);
+                await detailsHandler.showAnimeEpisodeSelector(interaction, malId, anime?.title);
+            } catch (error) {
+                await detailsHandler.showAnimeEpisodeSelector(interaction, malId, null);
+            }
+            return;
+        }
+
         // Handle watchlist toggle buttons
         if (customId.startsWith('watchlist_toggle_')) {
             const parts = customId.split('_');
@@ -299,6 +314,25 @@ client.on('interactionCreate', async (interaction) => {
             const episode = parseInt(selectedValue.split('_')[3]);
             
             await detailsHandler.showEpisodeDetails(interaction, tvId, season, episode);
+            return;
+        }
+
+        // Handle anime episode selection
+        if (customId.startsWith('select_anime_ep_')) {
+            const malId = parseInt(customId.split('_')[3]);
+            const selectedValue = values[0];
+            
+            if (selectedValue.includes('_more')) {
+                // User selected "more episodes" - show message
+                await interaction.reply({
+                    content: '⚠️ This anime has many episodes. Please use the search feature to find specific episodes.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            const episode = parseInt(selectedValue.split('_')[2]);
+            await detailsHandler.showAnimeEpisodeDetails(interaction, malId, episode);
             return;
         }
 

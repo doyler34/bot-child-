@@ -304,9 +304,9 @@ class DetailsHandler {
     }
 
     /**
-     * Show anime links directly via MAL id (fallback when no TMDB id)
+     * Show anime episode selector (similar to season selector for TV shows)
      */
-    async showAnimeDirect(interaction, malId, title) {
+    async showAnimeEpisodeSelector(interaction, malId, title) {
         try {
             // Defer immediately to prevent timeout
             if (!interaction.deferred && !interaction.replied) {
@@ -323,48 +323,61 @@ class DetailsHandler {
                 anime = await jikanService.getAnimeById(malId);
             } catch (error) {
                 console.error('Failed to fetch anime details from Jikan:', error);
-                // Continue with basic info if fetch fails
+                throw new Error('Failed to load anime details');
             }
 
-            // Create detailed embed if we have anime data, otherwise use basic
-            const embed = anime 
-                ? embedBuilder.createDetailedAnimeCard(anime)
-                : embedBuilder.createInfoEmbed(
-                    `🍥 ${title || 'Anime'}`,
-                    'Select a provider to watch.'
-                );
+            // Create detailed embed
+            const embed = embedBuilder.createDetailedAnimeCard(anime);
 
-            // Default to season 1 episode 1 for link generation
-            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, 1, { malId });
+            // Get episode count (default to 1 if unknown)
+            const episodeCount = anime.episodes || 1;
+            const maxEpisodes = Math.min(episodeCount, 25); // Discord limit
 
-            const streamButtons = streamLinks.map(link =>
-                new ButtonBuilder()
-                    .setLabel(link.name)
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(link.url)
-                    .setEmoji(link.emoji)
-            );
+            // Create episode selection menu
+            const episodes = [];
+            for (let i = 1; i <= maxEpisodes; i++) {
+                episodes.push({
+                    label: `Episode ${i}`,
+                    description: `Watch episode ${i}`,
+                    value: `anime_ep_${malId}_${i}`,
+                    emoji: '🎬'
+                });
+            }
 
+            // If more than 25 episodes, add a note
+            if (episodeCount > 25) {
+                episodes.push({
+                    label: `More episodes available (${episodeCount} total)`,
+                    description: 'This anime has many episodes',
+                    value: `anime_ep_${malId}_more`,
+                    emoji: '➕'
+                });
+            }
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId(`select_anime_ep_${malId}`)
+                .setPlaceholder('Choose an episode to watch')
+                .addOptions(episodes);
+
+            const menuRow = new ActionRowBuilder().addComponents(selectMenu);
+
+            // Add back button
             const backButton = new ButtonBuilder()
                 .setCustomId('back_to_results')
                 .setLabel('Back')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
 
-            const rows = [];
-            if (streamButtons.length) {
-                rows.push(new ActionRowBuilder().addComponents(...streamButtons));
-            }
-            rows.push(new ActionRowBuilder().addComponents(backButton));
+            const backRow = new ActionRowBuilder().addComponents(backButton);
 
-            const message = await interaction.editReply({ 
-                embeds: [embed], 
-                components: rows 
+            const message = await interaction.editReply({
+                embeds: [embed],
+                components: [menuRow, backRow]
             });
 
             messageCleanup.scheduleDelete(message);
         } catch (error) {
-            console.error('Error showing anime direct links:', error);
+            console.error('Error showing anime episode selector:', error);
             const payload = {
                 embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime details.')],
                 components: []
@@ -376,6 +389,95 @@ class DetailsHandler {
                 await interaction.reply({ ...payload, ephemeral: true });
             }
         }
+    }
+
+    /**
+     * Show anime episode details with streaming links
+     */
+    async showAnimeEpisodeDetails(interaction, malId, episode) {
+        try {
+            // Defer immediately to prevent timeout
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
+
+            if (!malId || !episode) {
+                throw new Error('Missing MAL id or episode number');
+            }
+
+            // Fetch anime details
+            let anime = null;
+            try {
+                anime = await jikanService.getAnimeById(malId);
+            } catch (error) {
+                console.error('Failed to fetch anime details:', error);
+            }
+
+            // Create embed
+            const embed = anime 
+                ? embedBuilder.createDetailedAnimeCard(anime)
+                : embedBuilder.createInfoEmbed(
+                    `🍥 Episode ${episode}`,
+                    'Select a provider to watch.'
+                );
+
+            // Update title for specific episode
+            if (anime) {
+                embed.setTitle(`🍥 ${anime.title} - Episode ${episode}`);
+            }
+
+            // Get streaming links for this episode
+            const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, episode, { malId });
+
+            const streamButtons = streamLinks.map(link =>
+                new ButtonBuilder()
+                    .setLabel(link.name)
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(link.url)
+                    .setEmoji(link.emoji)
+            );
+
+            // Add back button to episode selector
+            const backButton = new ButtonBuilder()
+                .setCustomId(`back_to_anime_eps_${malId}`)
+                .setLabel('Back to Episodes')
+                .setStyle(ButtonStyle.Secondary)
+                .setEmoji('⬅️');
+
+            const rows = [];
+            if (streamButtons.length) {
+                rows.push(new ActionRowBuilder().addComponents(...streamButtons));
+            }
+            rows.push(new ActionRowBuilder().addComponents(backButton));
+
+            const message = await interaction.editReply({
+                embeds: [embed],
+                components: rows
+            });
+
+            messageCleanup.scheduleDelete(message);
+        } catch (error) {
+            console.error('Error showing anime episode details:', error);
+            const payload = {
+                embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load episode links.')],
+                components: []
+            };
+            if (interaction.replied || interaction.deferred) {
+                const errorMsg = await interaction.editReply(payload);
+                messageCleanup.scheduleDelete(errorMsg);
+            } else {
+                await interaction.reply({ ...payload, ephemeral: true });
+            }
+        }
+    }
+
+    /**
+     * Show anime links directly via MAL id (fallback when no TMDB id)
+     * @deprecated Use showAnimeEpisodeSelector instead
+     */
+    async showAnimeDirect(interaction, malId, title) {
+        // Redirect to episode selector
+        await this.showAnimeEpisodeSelector(interaction, malId, title);
     }
 }
 
