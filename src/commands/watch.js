@@ -61,13 +61,13 @@ module.exports = {
                         .setStyle(ButtonStyle.Success)
                 );
 
-            await interaction.editReply({
+            const message = await interaction.editReply({
                 embeds: [embed],
                 components: [row1, row2]
             });
 
-            // Schedule automatic deletion after 6 hours
-            await messageCleanup.scheduleInteractionDelete(interaction);
+            // Track message for cleanup (ephemeral messages auto-dismiss, but track for activity)
+            messageCleanup.trackMessage(message, interaction.user.id);
 
         } catch (error) {
             console.error('Watch command error:', error);
