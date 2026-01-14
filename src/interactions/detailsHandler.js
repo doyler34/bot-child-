@@ -384,60 +384,79 @@ class DetailsHandler {
                 });
             }
             
-            // Fetch ALL related anime (sequels, prequels, side stories, alternatives)
+            // Fetch ALL related anime RECURSIVELY (sequels of sequels, etc.)
             const allRelated = [];
             const seenIds = new Set([malId]); // Track IDs to avoid duplicates
+            const toFetch = []; // Queue of anime to fetch
             
             console.log(`[Anime] ===== Fetching ALL related anime for ${anime.title} (MAL ${malId}) =====`);
             
-            // Collect ALL related anime entries from relations
-            const animeRelations = anime.relations || [];
-            console.log(`[Anime] Found ${animeRelations.length} relation groups`);
-            
-            const relatedEntries = [];
-            animeRelations.forEach(rel => {
-                console.log(`[Anime] Relation type: ${rel.relation}`);
-                const entries = rel.entry || [];
-                entries.forEach(entry => {
-                    if (entry.type === 'anime' && entry.mal_id && !seenIds.has(entry.mal_id)) {
-                        console.log(`[Anime]   - ${entry.name} (MAL ${entry.mal_id})`);
-                        seenIds.add(entry.mal_id);
-                        relatedEntries.push({
-                            malId: entry.mal_id,
-                            name: entry.name,
-                            relationType: rel.relation
-                        });
-                    }
-                });
-            });
-            
-            console.log(`[Anime] Found ${relatedEntries.length} related anime to fetch`);
-            
-            // Fetch all related anime with rate limiting
-            if (relatedEntries.length > 0) {
-                for (const entry of relatedEntries) {
-                    try {
-                        console.log(`[Anime] Fetching: ${entry.name} (MAL ${entry.malId})...`);
-                        const relatedAnime = await jikanService.getAnimeById(entry.malId);
-                        
-                        if (relatedAnime) {
-                            // Prefer English title for better readability
-                            const displayName = relatedAnime.title_english || relatedAnime.title;
-                            console.log(`[Anime]   ✓ Got ${displayName}: ${relatedAnime.episodes || '?'} episodes, aired ${relatedAnime.aired?.from || 'unknown'}`);
-                            allRelated.push({
-                                malId: relatedAnime.mal_id,
-                                name: displayName,
-                                episodes: relatedAnime.episodes || 1,
-                                aired: relatedAnime.aired?.from,
-                                relationType: entry.relationType
+            // Recursive function to collect ALL related anime IDs
+            const collectRelatedIds = (animeData, depth = 0) => {
+                if (depth > 3) return; // Limit recursion depth to avoid infinite loops
+                
+                const relations = animeData.relations || [];
+                console.log(`[Anime] ${'  '.repeat(depth)}Checking relations at depth ${depth}`);
+                
+                relations.forEach(rel => {
+                    const entries = rel.entry || [];
+                    entries.forEach(entry => {
+                        if (entry.type === 'anime' && entry.mal_id && !seenIds.has(entry.mal_id)) {
+                            console.log(`[Anime] ${'  '.repeat(depth)}- ${entry.name} (${rel.relation}, MAL ${entry.mal_id})`);
+                            seenIds.add(entry.mal_id);
+                            toFetch.push({
+                                malId: entry.mal_id,
+                                name: entry.name,
+                                relationType: rel.relation,
+                                depth: depth
                             });
                         }
-                        
-                        // Add small delay to avoid Jikan rate limiting (3 req/sec = ~350ms)
-                        await new Promise(resolve => setTimeout(resolve, 400));
-                    } catch (err) {
-                        console.warn(`[Anime]   ✗ Failed to fetch ${entry.name} (MAL ${entry.malId}):`, err.message);
-                    }
+                    });
+                });
+            };
+            
+            // Start collecting from the main anime
+            collectRelatedIds(anime, 0);
+            
+            console.log(`[Anime] Found ${toFetch.length} related anime to fetch`);
+            
+            // Fetch all related anime in batches (3 at a time to respect rate limit)
+            const batchSize = 3;
+            for (let i = 0; i < toFetch.length; i += batchSize) {
+                const batch = toFetch.slice(i, i + batchSize);
+                console.log(`[Anime] Fetching batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(toFetch.length / batchSize)}...`);
+                
+                const results = await Promise.all(
+                    batch.map(async (entry) => {
+                        try {
+                            const relatedAnime = await jikanService.getAnimeById(entry.malId);
+                            if (relatedAnime) {
+                                // Collect more related anime from this one
+                                collectRelatedIds(relatedAnime, entry.depth + 1);
+                                
+                                const displayName = relatedAnime.title_english || relatedAnime.title;
+                                console.log(`[Anime]   ✓ ${displayName}: ${relatedAnime.episodes || '?'} eps`);
+                                return {
+                                    malId: relatedAnime.mal_id,
+                                    name: displayName,
+                                    episodes: relatedAnime.episodes || 1,
+                                    aired: relatedAnime.aired?.from,
+                                    relationType: entry.relationType
+                                };
+                            }
+                        } catch (err) {
+                            console.warn(`[Anime]   ✗ Failed ${entry.name}:`, err.message);
+                        }
+                        return null;
+                    })
+                );
+                
+                // Add successful results
+                results.filter(Boolean).forEach(r => allRelated.push(r));
+                
+                // Wait between batches to avoid rate limiting
+                if (i + batchSize < toFetch.length) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
             }
             
