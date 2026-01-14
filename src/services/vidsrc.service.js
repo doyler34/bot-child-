@@ -13,6 +13,7 @@ class VidSrcService {
         
         // Multiple streaming providers
         this.providers = [
+            // Prefer domains that resolve from our host first
             {
                 name: 'VidSrc',
                 slug: 'vidsrc',
@@ -20,16 +21,17 @@ class VidSrcService {
                 emoji: '🎬'
             },
             {
-                name: 'VidSrc Pro',
-                slug: 'vidsrcpro',
-                baseUrl: 'https://vidsrc.pro/embed',
-                emoji: '⭐'
-            },
-            {
                 name: 'VidSrc Me',
                 slug: 'vidsrcme',
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
+            },
+            // Keep Pro last; it may resolve to embed.su which can fail on some hosts
+            {
+                name: 'VidSrc Pro',
+                slug: 'vidsrcpro',
+                baseUrl: 'https://vidsrc.pro/embed',
+                emoji: '⭐'
             }
         ];
     }
@@ -301,25 +303,32 @@ class VidSrcService {
      */
     async _extractIframeSrc(targetUrl, depth = 0) {
         if (depth > 3) {
-            throw new Error('Reached maximum iframe depth');
-        }
-
-        const response = await axios.get(targetUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; StreamBot/1.0)'
-            },
-            timeout: 8000
-        });
-
-        const iframeMatch = response.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
-        if (!iframeMatch) {
+            // Too deep; fall back to last known URL
             return targetUrl;
         }
 
-        const iframeSrc = iframeMatch[1];
-        const resolved = new URL(iframeSrc, targetUrl).toString();
+        try {
+            const response = await axios.get(targetUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (compatible; StreamBot/1.0)'
+                },
+                timeout: 8000
+            });
 
-        return this._extractIframeSrc(resolved, depth + 1);
+            const iframeMatch = response.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+            if (!iframeMatch) {
+                return targetUrl;
+            }
+
+            const iframeSrc = iframeMatch[1];
+            const resolved = new URL(iframeSrc, targetUrl).toString();
+
+            return this._extractIframeSrc(resolved, depth + 1);
+        } catch (err) {
+            // If DNS/egress blocked, fall back to the original embed URL
+            console.warn(`Proxy iframe unwrap failed (${err.code || err.message}); returning original URL`);
+            return targetUrl;
+        }
     }
 }
 
