@@ -23,7 +23,7 @@ class MenuHandler {
             } else if (customId === 'menu_shows') {
                 await this.showShowsMenu(interaction);
             } else if (customId === 'menu_anime') {
-                await this.showAnime(interaction);
+                await this.showAnimeMenu(interaction);
             } else if (customId === 'movies_popular') {
                 await this.showPopularMovies(interaction);
             } else if (customId === 'movies_trending') {
@@ -36,8 +36,12 @@ class MenuHandler {
                 await this.showTrendingShows(interaction);
             } else if (customId === 'shows_search') {
                 await this.showSearchModal(interaction, 'tv');
-            } else if (customId === 'shows_anime') {
-                await this.showAnime(interaction);
+            } else if (customId === 'anime_popular') {
+                await this.showPopularAnime(interaction);
+            } else if (customId === 'anime_trending') {
+                await this.showTrendingAnime(interaction);
+            } else if (customId === 'anime_search') {
+                await this.showSearchModal(interaction, 'anime');
             } else if (customId === 'menu_watchlist') {
                 await this.showWatchlist(interaction);
             } else if (customId === 'menu_continue') {
@@ -199,11 +203,6 @@ class MenuHandler {
                     .setEmoji('🔥')
                     .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
-                    .setCustomId('shows_anime')
-                    .setLabel('Anime')
-                    .setEmoji('🍥')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
                     .setCustomId('shows_search')
                     .setLabel('Search Shows')
                     .setEmoji('🔍')
@@ -342,6 +341,97 @@ class MenuHandler {
         );
     }
 
+    async showAnimeMenu(interaction) {
+        const embed = new EmbedBuilder()
+            .setColor(config.embed.colors.primary)
+            .setTitle('🍥 Anime')
+            .setDescription('Choose a category to browse anime')
+            .setTimestamp();
+
+        const row1 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('anime_popular')
+                    .setLabel('Popular')
+                    .setEmoji('⭐')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('anime_trending')
+                    .setLabel('Trending')
+                    .setEmoji('🔥')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('anime_search')
+                    .setLabel('Search Anime')
+                    .setEmoji('🔍')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+        const row2 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('back_main')
+                    .setLabel('Back')
+                    .setEmoji('⬅️')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.update({
+            embeds: [embed],
+            components: [row1, row2]
+        });
+    }
+
+    async showPopularAnime(interaction) {
+        await interaction.deferUpdate();
+        const results = await tmdbService.getPopular('tv');
+        const items = this._filterAnime(results.results).slice(0, 20).map(item => ({
+            ...item,
+            media_type: 'tv'
+        }));
+
+        const replyInteraction = {
+            ...interaction,
+            deferred: true,
+            editReply: interaction.editReply.bind(interaction)
+        };
+
+        await paginator.paginateWithSelection(
+            replyInteraction,
+            items,
+            {
+                itemsPerPage: 2,
+                customId: 'popular_anime',
+                title: '⭐ Popular Anime'
+            }
+        );
+    }
+
+    async showTrendingAnime(interaction) {
+        await interaction.deferUpdate();
+        const results = await tmdbService.getTrending('tv', 'week');
+        const items = this._filterAnime(results.results).slice(0, 20).map(item => ({
+            ...item,
+            media_type: 'tv'
+        }));
+
+        const replyInteraction = {
+            ...interaction,
+            deferred: true,
+            editReply: interaction.editReply.bind(interaction)
+        };
+
+        await paginator.paginateWithSelection(
+            replyInteraction,
+            items,
+            {
+                itemsPerPage: 2,
+                customId: 'trending_anime',
+                title: '🔥 Trending Anime'
+            }
+        );
+    }
+
     async handleSearchSubmit(interaction) {
         await interaction.deferReply();
         
@@ -362,6 +452,13 @@ class MenuHandler {
             results = await tmdbService.searchTVShows(query);
             // Add media_type for TV-only searches
             items = results.results.slice(0, 20).map(item => ({
+                ...item,
+                media_type: 'tv'
+            }));
+        } else if (type === 'anime') {
+            results = await tmdbService.searchTVShows(query);
+            const filtered = this._filterAnime(results.results);
+            items = filtered.slice(0, 20).map(item => ({
                 ...item,
                 media_type: 'tv'
             }));
@@ -522,31 +619,19 @@ class MenuHandler {
         );
     }
 
-    async showAnime(interaction) {
-        await interaction.deferUpdate();
-
-        // Simple anime feed: search TV with keyword "anime"
-        const results = await tmdbService.searchTVShows('anime');
-        const items = results.results.slice(0, 20).map(item => ({
-            ...item,
-            media_type: 'tv'
-        }));
-
-        const replyInteraction = {
-            ...interaction,
-            deferred: true,
-            editReply: interaction.editReply.bind(interaction)
-        };
-
-        await paginator.paginateWithSelection(
-            replyInteraction,
-            items,
-            {
-                itemsPerPage: 2,
-                customId: 'anime_tv',
-                title: '🍥 Anime (TV)'
-            }
-        );
+    /**
+     * Basic anime filter: origin JP or animation genre
+     * @private
+     */
+    _filterAnime(items = []) {
+        return (items || []).filter(item => {
+            const origin = item.origin_country || item.originCountry;
+            const genres = item.genre_ids || item.genres;
+            const hasJP = Array.isArray(origin) && origin.includes('JP');
+            const hasAnimationId = Array.isArray(genres) && genres.includes(16);
+            const hasAnimationName = Array.isArray(genres) && genres.some(g => (g.name || '').toLowerCase() === 'animation');
+            return hasJP || hasAnimationId || hasAnimationName;
+        });
     }
 }
 
