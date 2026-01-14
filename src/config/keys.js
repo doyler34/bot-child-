@@ -23,6 +23,9 @@ module.exports = {
         baseUrl: 'https://vidsrc.to/embed'
     },
 
+    // Optional additional providers (JSON array of {name, slug, baseUrl, emoji, types?})
+    animeProviders: process.env.ANIME_PROVIDERS || '[]',
+
     // Optional lightweight proxy to unwrap provider iframes
     proxy: {
         enabled: process.env.PROXY_ENABLED === 'true',

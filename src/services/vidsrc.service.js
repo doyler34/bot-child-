@@ -27,6 +27,9 @@ class VidSrcService {
                 emoji: '🎥'
             }
         ];
+
+        // Load optional extra providers from env (e.g., anime-focused)
+        this.providers.push(...this._loadExtraProviders());
     }
 
     /**
@@ -40,7 +43,7 @@ class VidSrcService {
             throw new Error('TMDB ID is required');
         }
 
-        const provider = this.providers[0];
+        const provider = this._getPrimaryProviderFor('movie');
         const url = this._buildProviderUrl(provider, `/movie/${tmdbId}`);
         
         if (title) {
@@ -67,7 +70,7 @@ class VidSrcService {
             throw new Error('Season and episode must be positive numbers');
         }
 
-        const provider = this.providers[0];
+        const provider = this._getPrimaryProviderFor('tv');
         const url = this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`);
         
         if (title) {
@@ -240,11 +243,13 @@ class VidSrcService {
             throw new Error('TMDB ID is required');
         }
 
-        return this.providers.map(provider => ({
-            name: provider.name,
-            url: this._buildProviderUrl(provider, `/movie/${tmdbId}`),
-            emoji: provider.emoji
-        }));
+        return this.providers
+            .filter(p => this._supportsType(p, 'movie'))
+            .map(provider => ({
+                name: provider.name,
+                url: this._buildProviderUrl(provider, `/movie/${tmdbId}`),
+                emoji: provider.emoji
+            }));
     }
 
     /**
@@ -259,11 +264,13 @@ class VidSrcService {
             throw new Error('TMDB ID, season, and episode are required');
         }
 
-        return this.providers.map(provider => ({
-            name: provider.name,
-            url: this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`),
-            emoji: provider.emoji
-        }));
+        return this.providers
+            .filter(p => this._supportsType(p, 'tv'))
+            .map(provider => ({
+                name: provider.name,
+                url: this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`),
+                emoji: provider.emoji
+            }));
     }
 
     /**
@@ -288,6 +295,49 @@ class VidSrcService {
      */
     _getProviderBySlug(slug) {
         return this.providers.find(p => p.slug === slug);
+    }
+
+    /**
+     * Get a primary provider that supports the given type
+     * @private
+     */
+    _getPrimaryProviderFor(type) {
+        return this.providers.find(p => this._supportsType(p, type)) || this.providers[0];
+    }
+
+    /**
+     * Check if provider supports type
+     * @private
+     */
+    _supportsType(provider, type) {
+        if (!provider.types || provider.types.length === 0) return true;
+        return provider.types.includes(type);
+    }
+
+    /**
+     * Load extra providers from env ANIME_PROVIDERS (JSON array)
+     * @private
+     */
+    _loadExtraProviders() {
+        const raw = keys.animeProviders;
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+
+            return parsed
+                .filter(p => p && p.name && p.slug && p.baseUrl)
+                .map(p => ({
+                    name: p.name,
+                    slug: p.slug,
+                    baseUrl: p.baseUrl,
+                    emoji: p.emoji || '🍥',
+                    types: Array.isArray(p.types) ? p.types : []
+                }));
+        } catch (err) {
+            console.warn('Failed to parse ANIME_PROVIDERS:', err.message);
+            return [];
+        }
     }
 
     /**
