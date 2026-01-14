@@ -28,20 +28,12 @@ class VidSrcService {
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
             },
-            // Default anime providers (MAL-based)
+            // Default anime provider (MAL-based, uses documented pattern: http://animembed.com/embed/{mal_id}/{episode})
             {
                 name: 'AnimEmbed',
                 slug: 'animembed',
-                baseUrl: 'https://animembed.com/embed',
+                baseUrl: 'http://animembed.com/embed',
                 emoji: '🍥',
-                types: ['tv'],
-                mode: 'mal'
-            },
-            {
-                name: 'AnimeWorld',
-                slug: 'animeworld',
-                baseUrl: 'https://animeworld.to/watch',
-                emoji: '🌍',
                 types: ['tv'],
                 mode: 'mal'
             }

@@ -387,11 +387,15 @@ class DetailsHandler {
                 embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime details.')],
                 components: []
             };
-            if (interaction.replied || interaction.deferred) {
-                const errorMsg = await interaction.editReply(payload);
-                messageCleanup.scheduleDelete(errorMsg);
-            } else {
-                await interaction.reply({ ...payload, ephemeral: true });
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    const errorMsg = await interaction.editReply(payload);
+                    messageCleanup.scheduleDelete(errorMsg);
+                } else {
+                    await interaction.reply({ ...payload, ephemeral: true });
+                }
+            } catch (replyError) {
+                console.error('Failed to send error message:', replyError);
             }
         }
     }
@@ -472,11 +476,15 @@ class DetailsHandler {
                 embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load episode links.')],
                 components: []
             };
-            if (interaction.replied || interaction.deferred) {
-                const errorMsg = await interaction.editReply(payload);
-                messageCleanup.scheduleDelete(errorMsg);
-            } else {
-                await interaction.reply({ ...payload, ephemeral: true });
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    const errorMsg = await interaction.editReply(payload);
+                    messageCleanup.scheduleDelete(errorMsg);
+                } else {
+                    await interaction.reply({ ...payload, ephemeral: true });
+                }
+            } catch (replyError) {
+                console.error('Failed to send error message:', replyError);
             }
         }
     }
