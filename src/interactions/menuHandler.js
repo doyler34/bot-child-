@@ -420,7 +420,7 @@ class MenuHandler {
                 }
             );
         } catch (error) {
-            console.error('Popular anime error:', error);
+            console.error('Popular anime error:', error?.stack || error?.message || error);
             await this._sendError(interaction, 'Failed to load popular anime.');
         }
     }
@@ -462,7 +462,7 @@ class MenuHandler {
                 }
             );
         } catch (error) {
-            console.error('Trending anime error:', error);
+            console.error('Trending anime error:', error?.stack || error?.message || error);
             await this._sendError(interaction, 'Failed to load trending anime.');
         }
     }
@@ -540,7 +540,7 @@ class MenuHandler {
                 }
             );
         } catch (error) {
-            console.error('Search submit error:', error);
+            console.error('Search submit error:', error?.stack || error?.message || error);
             await this._sendError(interaction, 'Failed to load search results.');
         }
     }
