@@ -17,9 +17,14 @@ async function handleProxyRequest(req, res) {
     const url = new URL(req.url, `http://localhost:${keys.proxy?.port || 3001}`);
     const segments = url.pathname.split('/').filter(Boolean); // [proxy, provider, type, ...]
 
+    // Simple health / root checks to satisfy platform probes
+    if (segments.length === 0 || url.pathname === '/health') {
+        respondJson(res, 200, { status: 'ok' });
+        return;
+    }
+
     if (segments[0] !== 'proxy') {
-        res.statusCode = 404;
-        res.end('Not found');
+        respondJson(res, 404, { error: 'Not found' });
         return;
     }
 
