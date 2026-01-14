@@ -40,6 +40,11 @@ module.exports = {
                         .setCustomId('menu_shows')
                         .setLabel('TV Shows')
                         .setEmoji('📺')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('menu_anime')
+                        .setLabel('Anime')
+                        .setEmoji('🍥')
                         .setStyle(ButtonStyle.Primary)
                 );
 
