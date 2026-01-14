@@ -177,13 +177,8 @@ class MenuHandler {
                 new ButtonBuilder()
                     .setCustomId('back_main')
                     .setLabel('Back to Main Menu')
-                    .setEmoji('⬅️')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('back_main')
-                    .setLabel('Cancel')
-                    .setEmoji('❌')
-                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🏠')
+                    .setStyle(ButtonStyle.Secondary)
             );
 
         await interaction.update({
@@ -223,13 +218,8 @@ class MenuHandler {
                 new ButtonBuilder()
                     .setCustomId('back_main')
                     .setLabel('Back to Main Menu')
-                    .setEmoji('⬅️')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('back_main')
-                    .setLabel('Cancel')
-                    .setEmoji('❌')
-                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🏠')
+                    .setStyle(ButtonStyle.Secondary)
             );
 
         await interaction.update({
@@ -386,13 +376,8 @@ class MenuHandler {
                 new ButtonBuilder()
                     .setCustomId('back_main')
                     .setLabel('Back to Main Menu')
-                    .setEmoji('⬅️')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('back_main')
-                    .setLabel('Cancel')
-                    .setEmoji('❌')
-                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🏠')
+                    .setStyle(ButtonStyle.Secondary)
             );
 
         await interaction.update({
