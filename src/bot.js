@@ -357,21 +357,9 @@ client.on('interactionCreate', async (interaction) => {
 
         // Handle anime season/part selection
         if (customId.startsWith('select_anime_season_')) {
-            const parts = customId.split('_');
-            const malId = parseInt(parts[3]);
-            
-            if (isNaN(malId)) {
-                console.error(`Failed to parse MAL ID from customId: ${customId}`);
-                await interaction.reply({
-                    content: '❌ Error: Invalid anime ID. Please try again.',
-                    ephemeral: true
-                });
-                return;
-            }
-            
             const selectedValue = values[0];
             
-            // Check if it's a related anime (sequel/prequel/side story)
+            // Check if it's a related anime (sequel/prequel/side story) - old format
             if (selectedValue.startsWith('anime_related_') || selectedValue.startsWith('anime_series_')) {
                 const relatedParts = selectedValue.split('_');
                 const relatedMalId = parseInt(relatedParts[relatedParts.length - 1]);
@@ -383,18 +371,30 @@ client.on('interactionCreate', async (interaction) => {
                 return;
             }
             
-            // It's a season/part - extract season number
+            // It's a season/part - format: anime_season_{malId}_{partNum}
             const seasonParts = selectedValue.split('_');
-            const seasonNum = parseInt(seasonParts[seasonParts.length - 1]);
-            
-            if (isNaN(seasonNum)) {
-                console.error(`Failed to parse season from value: ${selectedValue}`);
+            if (seasonParts.length < 4) {
+                console.error(`Invalid season value format: ${selectedValue}`);
                 await interaction.reply({
-                    content: '❌ Error: Invalid season number. Please try again.',
+                    content: '❌ Error: Invalid selection. Please try again.',
                     ephemeral: true
                 });
                 return;
             }
+            
+            const malId = parseInt(seasonParts[2]);
+            const seasonNum = parseInt(seasonParts[3]);
+            
+            if (isNaN(malId) || isNaN(seasonNum)) {
+                console.error(`Failed to parse MAL ID or season from value: ${selectedValue}`);
+                await interaction.reply({
+                    content: '❌ Error: Invalid selection. Please try again.',
+                    ephemeral: true
+                });
+                return;
+            }
+            
+            console.log(`[Bot] User selected season/part: MAL ID ${malId}, Part ${seasonNum}`);
             
             // Show episodes for this season/part
             await detailsHandler.showAnimeSeasonEpisodes(interaction, malId, seasonNum);

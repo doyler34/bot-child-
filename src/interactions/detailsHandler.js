@@ -349,70 +349,112 @@ class DetailsHandler {
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
             
-            // Check for sequels/prequels (separate seasons)
+            // Check for sequels/prequels (separate seasons) and fetch their episode counts
             const relations = anime.relations || [];
-            const sequels = [];
+            const allSeasons = [];
+            
+            // Add the current season first
+            if (episodeCount > 24) {
+                // Split into parts
+                const episodesPerPart = 24;
+                const numParts = Math.ceil(episodeCount / episodesPerPart);
+                
+                for (let p = 1; p <= numParts; p++) {
+                    const startEp = (p - 1) * episodesPerPart + 1;
+                    const endEp = Math.min(p * episodesPerPart, episodeCount);
+                    allSeasons.push({
+                        label: `${anime.title} - Episodes ${startEp}-${endEp}`,
+                        description: `Part ${p} (${endEp - startEp + 1} episodes)`,
+                        value: `anime_season_${malId}_${p}`,
+                        emoji: '📺',
+                        malId: malId,
+                        partNum: p
+                    });
+                }
+            } else {
+                // Add as single season
+                allSeasons.push({
+                    label: anime.title,
+                    description: `${episodeCount} episode${episodeCount > 1 ? 's' : ''}`,
+                    value: `anime_season_${malId}_1`,
+                    emoji: '📺',
+                    malId: malId,
+                    partNum: 1
+                });
+            }
+            
+            // Fetch sequel information
+            const sequelPromises = [];
             relations.forEach(rel => {
                 if (rel.relation === 'Sequel') {
                     const entries = rel.entry || [];
                     entries.forEach(entry => {
                         if (entry.type === 'anime' && entry.mal_id) {
-                            sequels.push({
-                                malId: entry.mal_id,
-                                name: entry.name,
-                                relation: rel.relation
-                            });
+                            sequelPromises.push(
+                                jikanService.getAnimeById(entry.mal_id)
+                                    .then(sequelAnime => ({
+                                        malId: entry.mal_id,
+                                        name: sequelAnime.title || entry.name,
+                                        episodes: sequelAnime.episodes || 1
+                                    }))
+                                    .catch(err => {
+                                        console.warn(`Failed to fetch sequel ${entry.mal_id}:`, err.message);
+                                        return null;
+                                    })
+                            );
                         }
                     });
                 }
             });
             
-            console.log(`[Anime] ${anime.title} has ${episodeCount} episodes and ${sequels.length} sequels`);
-            
-            // If we have sequels OR more than 24 episodes, show selector
-            if (sequels.length > 0 || episodeCount > 24) {
-                const options = [];
+            // Wait for all sequel data
+            if (sequelPromises.length > 0) {
+                const sequels = (await Promise.all(sequelPromises)).filter(Boolean);
                 
-                // Add this season's episodes (grouped if >24 episodes)
-                if (episodeCount > 24) {
-                    const episodesPerPart = 24;
-                    const numParts = Math.ceil(episodeCount / episodesPerPart);
-                    
-                    for (let p = 1; p <= Math.min(numParts, 20); p++) {
-                        const startEp = (p - 1) * episodesPerPart + 1;
-                        const endEp = Math.min(p * episodesPerPart, episodeCount);
-                        options.push({
-                            label: `Episodes ${startEp}-${endEp}`,
-                            description: `${anime.title} - Part ${p}`,
-                            value: `anime_season_${malId}_${p}`,
-                            emoji: '📺'
+                // Add all sequels with their part breakdowns
+                sequels.forEach(sequel => {
+                    if (sequel.episodes > 24) {
+                        const episodesPerPart = 24;
+                        const numParts = Math.ceil(sequel.episodes / episodesPerPart);
+                        
+                        for (let p = 1; p <= numParts; p++) {
+                            const startEp = (p - 1) * episodesPerPart + 1;
+                            const endEp = Math.min(p * episodesPerPart, sequel.episodes);
+                            allSeasons.push({
+                                label: `${sequel.name} - Episodes ${startEp}-${endEp}`,
+                                description: `Part ${p} (${endEp - startEp + 1} episodes)`,
+                                value: `anime_season_${sequel.malId}_${p}`,
+                                emoji: '▶️',
+                                malId: sequel.malId,
+                                partNum: p
+                            });
+                        }
+                    } else {
+                        allSeasons.push({
+                            label: sequel.name,
+                            description: `${sequel.episodes} episode${sequel.episodes > 1 ? 's' : ''}`,
+                            value: `anime_season_${sequel.malId}_1`,
+                            emoji: '▶️',
+                            malId: sequel.malId,
+                            partNum: 1
                         });
                     }
-                } else {
-                    // Add this season as a single option
-                    options.push({
-                        label: anime.title,
-                        description: `Episodes 1-${episodeCount}`,
-                        value: `anime_season_${malId}_1`,
-                        emoji: '📺'
-                    });
-                }
-                
-                // Add sequels (other seasons)
-                const availableSlots = 25 - options.length;
-                sequels.slice(0, availableSlots).forEach((sequel) => {
-                    options.push({
-                        label: sequel.name,
-                        description: 'Next Season - Click to view',
-                        value: `anime_series_${sequel.malId}`,
-                        emoji: '▶️'
-                    });
                 });
-
+            }
+            
+            console.log(`[Anime] ${anime.title}: Total ${allSeasons.length} season/part options`);
+            
+            // If we have multiple seasons/parts, show selector
+            if (allSeasons.length > 1) {
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId(`select_anime_season_${malId}`)
-                    .setPlaceholder('Choose a season/part to watch')
-                    .addOptions(options.slice(0, 25));
+                    .setPlaceholder('Choose a season/part')
+                    .addOptions(allSeasons.slice(0, 25).map(s => ({
+                        label: s.label,
+                        description: s.description,
+                        value: s.value,
+                        emoji: s.emoji
+                    })));
 
                 const menuRow = new ActionRowBuilder().addComponents(selectMenu);
 
@@ -440,7 +482,7 @@ class DetailsHandler {
                 return;
             }
 
-            // If 24 or fewer episodes and no sequels, show direct episode selector
+            // If only one season with ≤24 episodes, show direct episode selector
             const episodes = [];
             for (let i = 1; i <= episodeCount; i++) {
                 episodes.push({
