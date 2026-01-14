@@ -26,8 +26,14 @@ class GojoService {
             const res = await this.client.get('/api/search', {
                 params: { q: query }
             });
-            console.log(`[Gojo] Search returned ${res.data?.length || 0} results`);
-            return res.data || [];
+            const results = res.data || [];
+            console.log(`[Gojo] Search returned ${results.length} results`);
+            // API returns array of {title, image, href} where href is the anime ID
+            return results.map(item => ({
+                ...item,
+                id: item.href, // href is the anime ID
+                animeId: item.href
+            }));
         } catch (error) {
             console.error('[Gojo] Search error:', error?.response?.status, error?.message);
             throw error;
@@ -63,7 +69,16 @@ class GojoService {
             const res = await this.client.get('/api/episodes', {
                 params: { id: animeId }
             });
-            return res.data || [];
+            const episodes = res.data || [];
+            console.log(`[Gojo] Episodes response:`, episodes.length > 0 ? `Found ${episodes.length} episodes` : 'No episodes');
+            // API returns array of {href, number} where href is the full stream URL path
+            // Example: "animeId/pahe/1/epId1/zaza/1/epId2/strix/1/epId3"
+            return episodes.map(ep => ({
+                ...ep,
+                episode: ep.number,
+                episodeNumber: ep.number,
+                streamPath: ep.href // Store the href for stream URL generation
+            }));
         } catch (error) {
             console.error('[Gojo] Get episodes error:', error?.response?.status, error?.message);
             throw error;
@@ -77,11 +92,13 @@ class GojoService {
      */
     async getStreamUrls(streamUrl) {
         try {
-            console.log(`[Gojo] Fetching stream URLs`);
+            console.log(`[Gojo] Fetching stream URLs for path: ${streamUrl}`);
             const res = await this.client.get('/api/stream', {
                 params: { url: streamUrl }
             });
-            return res.data || null;
+            const data = res.data || {};
+            console.log(`[Gojo] Stream response:`, data.streams ? `${data.streams.length} streams` : 'No streams');
+            return data;
         } catch (error) {
             console.error('[Gojo] Get stream error:', error?.response?.status, error?.message);
             throw error;
@@ -99,20 +116,20 @@ class GojoService {
             // Step 1: Search for anime
             const searchResults = await this.searchAnime(title);
             if (!searchResults || searchResults.length === 0) {
+                console.warn(`[Gojo] No search results for "${title}"`);
                 return null;
             }
 
             // Use first result (best match)
             const anime = searchResults[0];
-            const animeId = anime.id || anime.animeId || anime._id;
+            const animeId = anime.id || anime.animeId;
 
             if (!animeId) {
                 console.warn('[Gojo] No anime ID found in search results');
-                console.warn('[Gojo] First result:', JSON.stringify(anime));
                 return null;
             }
 
-            console.log(`[Gojo] Found anime ID: ${animeId} for "${title}"`);
+            console.log(`[Gojo] Found anime: "${anime.title}" (ID: ${animeId})`);
 
             // Step 2: Get episodes
             const episodes = await this.getEpisodes(animeId);
@@ -121,77 +138,47 @@ class GojoService {
                 return null;
             }
 
-            console.log(`[Gojo] Found ${episodes.length} episodes for anime ID: ${animeId}`);
+            console.log(`[Gojo] Found ${episodes.length} episodes`);
 
             // Find the requested episode
-            // Try multiple field names and also try index-based (episodes are usually 1-indexed)
             const targetEpisode = episodes.find(ep => {
-                const epNum = ep.episode || ep.episodeNumber || ep.number || ep.ep || ep.epNum;
-                return epNum === episode || epNum === episode.toString() || parseInt(epNum) === episode;
-            }) || episodes[episode - 1]; // Fallback to array index (0-indexed, so episode-1)
+                const epNum = ep.episode || ep.episodeNumber || ep.number;
+                return epNum === episode || parseInt(epNum) === episode;
+            }) || episodes[episode - 1]; // Fallback to array index
 
-            if (!targetEpisode) {
-                console.warn(`[Gojo] Episode ${episode} not found. Available episodes: ${episodes.length}`);
-                if (episodes.length > 0) {
-                    console.warn(`[Gojo] First episode sample:`, JSON.stringify(episodes[0]));
-                }
+            if (!targetEpisode || !targetEpisode.streamPath) {
+                console.warn(`[Gojo] Episode ${episode} not found or missing streamPath`);
                 return null;
             }
 
-            // Step 3: Build stream URL
-            // Format: animeId/provider1/epNum/epId1/provider2/epNum/epId2
-            const providers = ['pahe', 'zaza', 'strix'];
-            const streamUrlParts = [animeId];
+            console.log(`[Gojo] Found episode ${episode}, streamPath: ${targetEpisode.streamPath}`);
 
-            for (const provider of providers) {
-                const epId = targetEpisode[provider] || targetEpisode[`${provider}Id`];
-                if (epId) {
-                    streamUrlParts.push(provider, episode, epId);
-                }
-            }
-
-            if (streamUrlParts.length === 1) {
-                console.warn('[Gojo] No provider IDs found for episode');
-                return null;
-            }
-
-            const streamUrl = streamUrlParts.join('/');
-
-            // Step 4: Get stream URLs
-            const streamData = await this.getStreamUrls(streamUrl);
-            if (!streamData) {
+            // Step 3: Get stream URLs using the href/streamPath from the episode
+            const streamData = await this.getStreamUrls(targetEpisode.streamPath);
+            if (!streamData || !streamData.streams) {
                 console.warn('[Gojo] No stream data returned');
                 return null;
             }
 
-            // Handle different response formats
-            let sources = [];
-            if (Array.isArray(streamData)) {
-                sources = streamData;
-            } else if (streamData.sources) {
-                sources = Array.isArray(streamData.sources) ? streamData.sources : [];
-            } else if (streamData.streams) {
-                sources = Array.isArray(streamData.streams) ? streamData.streams : [];
-            } else if (streamData.url || streamData.stream) {
-                // Single stream URL
-                return streamData.url || streamData.stream;
+            // API returns {streams: [{label, url}]}
+            const streams = streamData.streams;
+            if (!Array.isArray(streams) || streams.length === 0) {
+                console.warn('[Gojo] No streams in response');
+                return null;
             }
 
-            if (sources.length > 0) {
-                // Sort by quality (1080p > 720p > 480p, etc.)
-                const sorted = sources.sort((a, b) => {
-                    const qualityA = parseInt(a.quality || a.resolution || '0');
-                    const qualityB = parseInt(b.quality || b.resolution || '0');
-                    return qualityB - qualityA;
-                });
-                const bestStream = sorted[0];
-                return bestStream.url || bestStream.stream || bestStream.src || bestStream.link || null;
-            }
+            // Sort by quality (extract number from label like "pahe - 1080p")
+            const sorted = streams.sort((a, b) => {
+                const qualityA = parseInt(a.label?.match(/(\d+)p/)?.[1] || '0');
+                const qualityB = parseInt(b.label?.match(/(\d+)p/)?.[1] || '0');
+                return qualityB - qualityA;
+            });
 
-            console.warn('[Gojo] No stream sources found in response');
-            return null;
+            const bestStream = sorted[0];
+            console.log(`[Gojo] Returning best stream: ${bestStream.label}`);
+            return bestStream.url;
         } catch (error) {
-            console.error('[Gojo] Failed to get episode stream URL:', error);
+            console.error('[Gojo] Failed to get episode stream URL:', error.message);
             return null;
         }
     }
