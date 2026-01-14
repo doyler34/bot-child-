@@ -150,30 +150,28 @@ async function handleProxyRequest(req, res) {
     try {
         let streamUrl;
 
-        // Check if a direct stream URL is provided (e.g., for Gojo)
+        // Check if a direct stream URL is provided (e.g., for Gojo, Cinetaro)
         const directUrl = url.searchParams.get('url');
         if (directUrl) {
             streamUrl = decodeURIComponent(directUrl);
         } else if (mediaType === 'movie') {
             const tmdbId = segments[3];
+            if (!tmdbId) {
+                respondJson(res, 400, { error: 'TMDB ID required' });
+                return;
+            }
             streamUrl = await vidsrcService.resolveStream(providerSlug, 'movie', { tmdbId });
         } else if (mediaType === 'tv') {
-            // Check if this is Gojo (requires title/episode) or standard TV (requires tmdbId/season/episode)
-            if (providerSlug === 'gojo') {
-                // For Gojo, we need title and episode from query params
-                const title = url.searchParams.get('title');
-                const episode = parseInt(url.searchParams.get('episode') || segments[5] || '1', 10);
-                if (!title || !episode) {
-                    respondJson(res, 400, { error: 'Title and episode required for Gojo' });
-                    return;
-                }
-                streamUrl = await vidsrcService.resolveStream(providerSlug, 'tv', { title, episode });
-            } else {
-                const tmdbId = segments[3];
-                const season = segments[4];
-                const episode = segments[5];
-                streamUrl = await vidsrcService.resolveStream(providerSlug, 'tv', { tmdbId, season, episode });
+            const tmdbId = segments[3];
+            const season = segments[4];
+            const episode = segments[5];
+            
+            if (!tmdbId || !season || !episode) {
+                respondJson(res, 400, { error: 'TMDB ID, season, and episode required' });
+                return;
             }
+            
+            streamUrl = await vidsrcService.resolveStream(providerSlug, 'tv', { tmdbId, season, episode });
         } else {
             respondJson(res, 400, { error: 'Unsupported media type' });
             return;

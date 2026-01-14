@@ -431,10 +431,18 @@ class VidSrcService {
             // Handle async providers (Gojo)
             const asyncLinks = await Promise.all(
                 asyncProviders.map(async provider => {
-                    if (!resolvedTitle) return null;
+                    if (!resolvedTitle) {
+                        console.warn(`[VidSrc] No title for async provider ${provider.name}`);
+                        return null;
+                    }
                     try {
                         const streamUrl = await gojoService.getEpisodeStreamUrl(resolvedTitle, episode);
-                        if (!streamUrl) return null;
+                        if (!streamUrl || typeof streamUrl !== 'string' || streamUrl.trim() === '') {
+                            console.warn(`[VidSrc] ${provider.name} returned invalid stream URL:`, streamUrl);
+                            return null;
+                        }
+                        
+                        console.log(`[VidSrc] ${provider.name} returned stream URL:`, streamUrl.substring(0, 50) + '...');
                         
                         // Wrap through proxy for HTML wrapper (fullscreen support)
                         const proxyEnabled = keys.proxy?.enabled;
@@ -445,6 +453,7 @@ class VidSrcService {
                             // Format: /proxy/gojo/tv?url={encodedStreamUrl}
                             const encodedUrl = encodeURIComponent(streamUrl);
                             const proxyUrl = `${proxyBase.replace(/\/$/, '')}/proxy/${provider.slug}/tv?url=${encodedUrl}`;
+                            console.log(`[VidSrc] ${provider.name} proxy URL:`, proxyUrl.substring(0, 80) + '...');
                             return {
                                 name: provider.name,
                                 url: proxyUrl,
