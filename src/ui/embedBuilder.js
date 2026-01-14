@@ -443,52 +443,50 @@ class EmbedBuilderService {
      * Create detailed anime card from Jikan data
      */
     createDetailedAnimeCard(anime) {
-        // Add rating to title if available
-        const rating = anime.score ? ` ⭐ ${anime.score.toFixed(1)}` : '';
+        // Match TV show/movie layout: clean title without rating
         const embed = new EmbedBuilder()
             .setColor(config.embed.colors.primary)
-            .setTitle(`🍥 ${anime.title || 'Anime'}${rating}`)
+            .setTitle(`🍥 ${anime.title || 'Anime'}`)
             .setTimestamp();
 
-        // Add poster as thumbnail at the top
+        // Add poster as thumbnail (same as TV shows/movies)
         if (anime.images?.jpg?.large_image_url) {
             embed.setThumbnail(anime.images.jpg.large_image_url);
         } else if (anime.images?.jpg?.image_url) {
             embed.setThumbnail(anime.images.jpg.image_url);
         }
 
-        // Add description/synopsis
+        // Add description/synopsis (match TV show 300 char limit)
         if (anime.synopsis) {
-            const synopsis = anime.synopsis.length > 500 
-                ? anime.synopsis.substring(0, 500) + '...'
+            const synopsis = anime.synopsis.length > 300 
+                ? anime.synopsis.substring(0, 300) + '...'
                 : anime.synopsis;
             embed.setDescription(synopsis);
         }
 
         const fields = [];
 
-        // Rating (MAL uses 10-point scale)
+        // Aired date (same as "First Aired" for TV shows)
+        if (anime.aired?.from) {
+            const year = new Date(anime.aired.from).getFullYear();
+            fields.push({
+                name: '📅 First Aired',
+                value: year.toString(),
+                inline: true
+            });
+        }
+
+        // Rating (match TV show format - simple, no user count)
         if (anime.score) {
             const stars = this._getStarRating(anime.score);
-            const scoreText = `${stars} ${anime.score.toFixed(1)}/10`;
-            const scoredBy = anime.scored_by ? `\n(${anime.scored_by.toLocaleString()} users)` : '';
             fields.push({
                 name: '⭐ Rating',
-                value: scoreText + scoredBy,
+                value: `${stars} ${anime.score.toFixed(1)}/10`,
                 inline: true
             });
         }
 
-        // Status (Airing, Finished, etc.)
-        if (anime.status) {
-            fields.push({
-                name: '📺 Status',
-                value: anime.status,
-                inline: true
-            });
-        }
-
-        // Episodes
+        // Episodes (same as TV shows)
         if (anime.episodes) {
             fields.push({
                 name: '📚 Episodes',
@@ -497,72 +495,22 @@ class EmbedBuilderService {
             });
         }
 
-        // Aired date
-        if (anime.aired?.from) {
-            const airedDate = new Date(anime.aired.from).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-            });
+        // Status (match TV show field name)
+        if (anime.status) {
             fields.push({
-                name: '📅 Aired',
-                value: airedDate,
+                name: '📡 Status',
+                value: anime.status,
                 inline: true
             });
         }
 
-        // Type (TV, Movie, OVA, etc.)
-        if (anime.type) {
-            fields.push({
-                name: '🎬 Type',
-                value: anime.type,
-                inline: true
-            });
-        }
-
-        // Duration per episode
-        if (anime.duration) {
-            fields.push({
-                name: '⏱️ Duration',
-                value: anime.duration,
-                inline: true
-            });
-        }
-
-        // Genres
+        // Genres (same as TV shows/movies)
         if (anime.genres && anime.genres.length > 0) {
             const genreNames = anime.genres.map(g => g.name).join(', ');
             fields.push({
                 name: '🎭 Genres',
                 value: genreNames,
                 inline: false
-            });
-        }
-
-        // Studios
-        if (anime.studios && anime.studios.length > 0) {
-            const studioNames = anime.studios.map(s => s.name).join(', ');
-            fields.push({
-                name: '🎨 Studios',
-                value: studioNames,
-                inline: false
-            });
-        }
-
-        // Rank/Popularity
-        if (anime.rank) {
-            fields.push({
-                name: '🏆 Rank',
-                value: `#${anime.rank}`,
-                inline: true
-            });
-        }
-
-        if (anime.popularity) {
-            fields.push({
-                name: '🔥 Popularity',
-                value: `#${anime.popularity}`,
-                inline: true
             });
         }
 
