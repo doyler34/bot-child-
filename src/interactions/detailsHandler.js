@@ -337,15 +337,34 @@ class DetailsHandler {
             // Get episode count (default to 1 if unknown)
             const episodeCount = anime.episodes || 1;
             
-            // Check for relations (sequels/prequels) - these are like "seasons"
+            // Check for relations (sequels/side stories/specials) - these are like "seasons"
             const relations = anime.relations || [];
-            const sequels = relations.filter(r => r.relation === 'Sequel' || r.relation === 'Prequel');
+            console.log(`[Anime] Found ${relations.length} relations for ${anime.title}`);
             
-            // If we have sequels or more than 24 episodes, show season/part selector
-            if (sequels.length > 0 || episodeCount > 24) {
+            // Extract all sequel-type relations (sequels, side stories, etc.)
+            const relatedSeries = [];
+            relations.forEach(rel => {
+                if (rel.relation === 'Sequel' || rel.relation === 'Prequel' || rel.relation === 'Side story' || rel.relation === 'Alternative version') {
+                    const entries = rel.entry || [];
+                    entries.forEach(entry => {
+                        if (entry.type === 'anime' && entry.mal_id) {
+                            relatedSeries.push({
+                                malId: entry.mal_id,
+                                name: entry.name,
+                                relation: rel.relation
+                            });
+                        }
+                    });
+                }
+            });
+            
+            console.log(`[Anime] Found ${relatedSeries.length} related anime series`);
+            
+            // If we have related series or more than 24 episodes, show season/part selector
+            if (relatedSeries.length > 0 || episodeCount > 24) {
                 const seasons = [];
                 
-                // Add main series as "Season 1" or "Part 1"
+                // Add main series episodes (split into parts if > 24 episodes)
                 const episodesPerSeason = 24;
                 const numSeasons = Math.ceil(episodeCount / episodesPerSeason);
                 
@@ -353,20 +372,21 @@ class DetailsHandler {
                     const startEp = (s - 1) * episodesPerSeason + 1;
                     const endEp = Math.min(s * episodesPerSeason, episodeCount);
                     seasons.push({
-                        label: `Part ${s} (Episodes ${startEp}-${endEp})`,
+                        label: `${anime.title} - Episodes ${startEp}-${endEp}`,
                         description: `${endEp - startEp + 1} episodes`,
                         value: `anime_season_${malId}_${s}`,
                         emoji: '📺'
                     });
                 }
                 
-                // Add sequels as additional parts
-                sequels.slice(0, Math.max(0, 25 - seasons.length)).forEach((seq, idx) => {
+                // Add related series as separate options (up to Discord's 25 option limit)
+                const availableSlots = 25 - seasons.length;
+                relatedSeries.slice(0, availableSlots).forEach((series) => {
                     seasons.push({
-                        label: seq.entry?.[0]?.name || `Part ${seasons.length + 1}`,
-                        description: `Sequel/Related series`,
-                        value: `anime_related_${malId}_${seq.entry?.[0]?.mal_id || idx}`,
-                        emoji: '🔗'
+                        label: series.name,
+                        description: `${series.relation} - Click to view episodes`,
+                        value: `anime_series_${series.malId}`,
+                        emoji: series.relation === 'Sequel' ? '▶️' : '🔗'
                     });
                 });
 

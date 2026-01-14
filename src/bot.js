@@ -371,11 +371,12 @@ client.on('interactionCreate', async (interaction) => {
             
             const selectedValue = values[0];
             
-            // Check if it's a related anime (sequel)
-            if (selectedValue.startsWith('anime_related_')) {
+            // Check if it's a related anime (sequel/prequel/side story)
+            if (selectedValue.startsWith('anime_related_') || selectedValue.startsWith('anime_series_')) {
                 const relatedParts = selectedValue.split('_');
                 const relatedMalId = parseInt(relatedParts[relatedParts.length - 1]);
                 if (!isNaN(relatedMalId)) {
+                    console.log(`[Bot] User selected related anime series, MAL ID: ${relatedMalId}`);
                     // Show episode selector for the related anime
                     await detailsHandler.showAnimeEpisodeSelector(interaction, relatedMalId, null);
                 }
