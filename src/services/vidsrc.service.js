@@ -39,14 +39,6 @@ class VidSrcService {
                 mode: 'anilist'
             },
             {
-                name: 'AutoEmbed',
-                slug: 'autoembed',
-                baseUrl: 'https://anime.autoembed.cc/embed',
-                emoji: '🎌',
-                types: ['tv'],
-                mode: 'title'
-            },
-            {
                 name: 'Gojo',
                 slug: 'gojo',
                 baseUrl: 'https://gojo-api.deno.dev',
@@ -387,21 +379,49 @@ class VidSrcService {
                 if (provider.mode === 'anilist') {
                     // Cinetaro format: /anime/[ANILIST_ID]/[SEASON]/[EPISODE]/[TYPE]
                     if (!resolvedAnilistId) return;
-                    syncLinks.push({
-                        name: provider.name,
-                        url: `${provider.baseUrl.replace(/\/$/, '')}/anime/${resolvedAnilistId}/${season}/${episode}/sub`,
-                        emoji: provider.emoji
-                    });
+                    const directUrl = `${provider.baseUrl.replace(/\/$/, '')}/anime/${resolvedAnilistId}/${season}/${episode}/sub`;
+                    
+                    // Wrap through proxy for fullscreen support
+                    const proxyEnabled = keys.proxy?.enabled;
+                    if (proxyEnabled) {
+                        const proxyBase = keys.proxy?.publicBaseUrl || `http://localhost:${keys.proxy?.port || 3001}`;
+                        const encodedUrl = encodeURIComponent(directUrl);
+                        syncLinks.push({
+                            name: provider.name,
+                            url: `${proxyBase.replace(/\/$/, '')}/proxy/${provider.slug}/tv?url=${encodedUrl}`,
+                            emoji: provider.emoji
+                        });
+                    } else {
+                        syncLinks.push({
+                            name: provider.name,
+                            url: directUrl,
+                            emoji: provider.emoji
+                        });
+                    }
                 } else if (provider.mode === 'title') {
                     // AutoEmbed format: {title}-episode-{number}
                     if (!resolvedTitle) return;
                     const slug = this._slugifyTitle(resolvedTitle, resolvedYear);
                     if (!slug) return;
-                    syncLinks.push({
-                        name: provider.name,
-                        url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
-                        emoji: provider.emoji
-                    });
+                    const directUrl = `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`;
+                    
+                    // Wrap through proxy for fullscreen support
+                    const proxyEnabled = keys.proxy?.enabled;
+                    if (proxyEnabled) {
+                        const proxyBase = keys.proxy?.publicBaseUrl || `http://localhost:${keys.proxy?.port || 3001}`;
+                        const encodedUrl = encodeURIComponent(directUrl);
+                        syncLinks.push({
+                            name: provider.name,
+                            url: `${proxyBase.replace(/\/$/, '')}/proxy/${provider.slug}/tv?url=${encodedUrl}`,
+                            emoji: provider.emoji
+                        });
+                    } else {
+                        syncLinks.push({
+                            name: provider.name,
+                            url: directUrl,
+                            emoji: provider.emoji
+                        });
+                    }
                 } else if (provider.mode === 'gojo') {
                     // Gojo requires async API calls
                     asyncProviders.push(provider);
