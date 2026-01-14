@@ -286,7 +286,7 @@ class VidSrcService {
         const baseLinks = this.getAllTVLinks(tmdbId, season, episode);
 
         // Find anime-capable providers
-        const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode === 'mal');
+        const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode);
         if (animeProviders.length === 0) {
             return baseLinks;
         }
@@ -297,21 +297,49 @@ class VidSrcService {
             const year = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
             const { malId } = await aniListService.findIds(title, year);
 
-            if (!malId) {
-                return baseLinks;
-            }
-
-            const animeLinks = animeProviders.map(provider => ({
-                name: provider.name,
-                url: `${provider.baseUrl.replace(/\/$/, '')}/${malId}/${episode}`,
-                emoji: provider.emoji
-            }));
+            const animeLinks = animeProviders
+                .map(provider => {
+                    if (provider.mode === 'mal') {
+                        if (!malId) return null;
+                        return {
+                            name: provider.name,
+                            url: `${provider.baseUrl.replace(/\/$/, '')}/${malId}/${episode}`,
+                            emoji: provider.emoji
+                        };
+                    }
+                    if (provider.mode === 'title') {
+                        const slug = this._slugifyTitle(title, year);
+                        if (!slug) return null;
+                        return {
+                            name: provider.name,
+                            url: `${provider.baseUrl.replace(/\/$/, '')}/${slug}-episode-${episode}`,
+                            emoji: provider.emoji
+                        };
+                    }
+                    return null;
+                })
+                .filter(Boolean);
 
             return [...baseLinks, ...animeLinks];
         } catch (err) {
             console.warn('Failed to load anime provider links:', err.message);
             return baseLinks;
         }
+    }
+
+    /**
+     * Slugify a title for title-based anime providers
+     * @private
+     */
+    _slugifyTitle(title, year) {
+        if (!title) return null;
+        const base = title
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/--+/g, '-');
+        if (!base) return null;
+        return year ? `${base}-${year}` : base;
     }
 
     /**

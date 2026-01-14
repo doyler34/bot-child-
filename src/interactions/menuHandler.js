@@ -22,6 +22,8 @@ class MenuHandler {
                 await this.showMoviesMenu(interaction);
             } else if (customId === 'menu_shows') {
                 await this.showShowsMenu(interaction);
+            } else if (customId === 'menu_anime') {
+                await this.showAnime(interaction);
             } else if (customId === 'movies_popular') {
                 await this.showPopularMovies(interaction);
             } else if (customId === 'movies_trending') {
@@ -88,6 +90,11 @@ class MenuHandler {
                     .setCustomId('menu_shows')
                     .setLabel('TV Shows')
                     .setEmoji('📺')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('menu_anime')
+                    .setLabel('Anime')
+                    .setEmoji('🍥')
                     .setStyle(ButtonStyle.Primary)
             );
 
