@@ -384,82 +384,59 @@ class DetailsHandler {
                 });
             }
             
-            // Fetch ALL related anime RECURSIVELY (sequels of sequels, etc.)
-            const allRelated = [];
-            const seenIds = new Set([malId]); // Track IDs to avoid duplicates
-            const toFetch = []; // Queue of anime to fetch
+            // Recursively fetch ALL SEQUELS
+            const allSequels = [];
+            const seenIds = new Set([malId]);
             
-            console.log(`[Anime] ===== Fetching ALL related anime for ${anime.title} (MAL ${malId}) =====`);
+            console.log(`[Anime] ===== Fetching ALL sequels for ${anime.title} =====`);
             
-            // Recursive function to collect ALL related anime IDs
-            const collectRelatedIds = (animeData, depth = 0) => {
-                if (depth > 3) return; // Limit recursion depth to avoid infinite loops
+            // Recursive function to fetch sequels
+            const fetchSequels = async (currentAnime, depth = 0) => {
+                if (depth > 10) return; // Safety limit
                 
-                const relations = animeData.relations || [];
-                console.log(`[Anime] ${'  '.repeat(depth)}Checking relations at depth ${depth}`);
+                const relations = currentAnime.relations || [];
                 
-                // Filter out non-essential relation types to reduce API calls
-                const essentialRelations = ['Sequel', 'Prequel', 'Alternative Version', 'Side Story'];
-                
-                relations.forEach(rel => {
-                    // Skip summaries, character collabs, and other non-essential content
-                    if (!essentialRelations.includes(rel.relation)) {
-                        return;
-                    }
+                for (const rel of relations) {
+                    if (rel.relation !== 'Sequel') continue; // ONLY sequels
                     
                     const entries = rel.entry || [];
-                    entries.forEach(entry => {
+                    for (const entry of entries) {
                         if (entry.type === 'anime' && entry.mal_id && !seenIds.has(entry.mal_id)) {
-                            console.log(`[Anime] ${'  '.repeat(depth)}- ${entry.name} (${rel.relation}, MAL ${entry.mal_id})`);
                             seenIds.add(entry.mal_id);
-                            toFetch.push({
-                                malId: entry.mal_id,
-                                name: entry.name,
-                                relationType: rel.relation,
-                                depth: depth
-                            });
+                            console.log(`[Anime] Found sequel: ${entry.name} (MAL ${entry.mal_id})`);
+                            
+                            try {
+                                await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limit
+                                const sequel = await jikanService.getAnimeById(entry.mal_id);
+                                
+                                if (sequel) {
+                                    const displayName = sequel.title_english || sequel.title;
+                                    console.log(`[Anime]   ✓ ${displayName}: ${sequel.episodes || '?'} eps`);
+                                    
+                                    allSequels.push({
+                                        malId: sequel.mal_id,
+                                        name: displayName,
+                                        episodes: sequel.episodes || 1,
+                                        aired: sequel.aired?.from
+                                    });
+                                    
+                                    // Recursively get sequels of this sequel
+                                    await fetchSequels(sequel, depth + 1);
+                                }
+                            } catch (err) {
+                                console.warn(`[Anime]   ✗ Failed to fetch ${entry.name}:`, err.message);
+                            }
                         }
-                    });
-                });
+                    }
+                }
             };
             
-            // Start collecting from the main anime
-            collectRelatedIds(anime, 0);
+            // Fetch all sequels starting from this anime
+            await fetchSequels(anime, 0);
             
-            console.log(`[Anime] Found ${toFetch.length} related anime to fetch`);
+            console.log(`[Anime] ===== Found ${allSequels.length} total sequels =====`);
             
-            // Fetch sequentially with proper rate limiting (Jikan limit: 1 req/sec)
-            for (let i = 0; i < toFetch.length; i++) {
-                const entry = toFetch[i];
-                console.log(`[Anime] Fetching ${i + 1}/${toFetch.length}: ${entry.name}...`);
-                
-                try {
-                    const relatedAnime = await jikanService.getAnimeById(entry.malId);
-                    if (relatedAnime) {
-                        // Collect more related anime from this one
-                        collectRelatedIds(relatedAnime, entry.depth + 1);
-                        
-                        const displayName = relatedAnime.title_english || relatedAnime.title;
-                        console.log(`[Anime]   ✓ ${displayName}: ${relatedAnime.episodes || '?'} eps`);
-                        allRelated.push({
-                            malId: relatedAnime.mal_id,
-                            name: displayName,
-                            episodes: relatedAnime.episodes || 1,
-                            aired: relatedAnime.aired?.from,
-                            relationType: entry.relationType
-                        });
-                    }
-                } catch (err) {
-                    console.warn(`[Anime]   ✗ Failed ${entry.name}:`, err.message);
-                }
-                
-                // Wait 1.5 seconds between requests to respect Jikan rate limit
-                if (i < toFetch.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-                }
-            }
-            
-            console.log(`[Anime] ===== Successfully fetched ${allRelated.length} related anime =====`);
+            const allRelated = allSequels;
             
             // Sort related anime by air date (chronological order)
             allRelated.sort((a, b) => {
