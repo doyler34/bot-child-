@@ -4,6 +4,7 @@
  */
 
 const http = require('http');
+const axios = require('axios');
 const keys = require('../config/keys');
 const vidsrcService = require('../services/vidsrc.service');
 
@@ -11,6 +12,47 @@ function respondJson(res, status, payload) {
     res.statusCode = status;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(payload));
+}
+
+/**
+ * Extract the innermost iframe src from an embed page (recursive, max depth 3)
+ * This strips ad-laden wrapper iframes to get to the actual video player
+ */
+async function extractIframeSrc(targetUrl, depth = 0) {
+    if (depth > 3) {
+        console.warn(`[Proxy] Max iframe depth reached, returning: ${targetUrl.substring(0, 50)}...`);
+        return targetUrl;
+    }
+
+    try {
+        const response = await axios.get(targetUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': targetUrl
+            },
+            timeout: 8000
+        });
+
+        // Look for iframe src in the HTML
+        const iframeMatch = response.data.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+        if (!iframeMatch) {
+            // No iframe found, this is the final URL
+            console.log(`[Proxy] No iframe found at depth ${depth}, using this URL`);
+            return targetUrl;
+        }
+
+        const iframeSrc = iframeMatch[1];
+        const resolved = new URL(iframeSrc, targetUrl).toString();
+        
+        console.log(`[Proxy] Found iframe at depth ${depth}: ${resolved.substring(0, 50)}...`);
+        
+        // Recursively extract from the nested iframe
+        return await extractIframeSrc(resolved, depth + 1);
+    } catch (err) {
+        // If extraction fails (DNS, timeout, etc.), fall back to original URL
+        console.warn(`[Proxy] Iframe extraction failed at depth ${depth} (${err.code || err.message}), using original URL`);
+        return targetUrl;
+    }
 }
 
 function respondHtml(res, streamUrl) {
@@ -150,10 +192,23 @@ async function handleProxyRequest(req, res) {
     try {
         let streamUrl;
 
-        // Check if a direct stream URL is provided (e.g., for Gojo, Cinetaro)
+        // Check if a direct stream URL is provided (e.g., for anime providers like Cinetaro)
         const directUrl = url.searchParams.get('url');
         if (directUrl) {
-            streamUrl = decodeURIComponent(directUrl);
+            const decodedUrl = decodeURIComponent(directUrl);
+            // Check if this is a direct video stream (e.g., .m3u8, .mp4) or an embed page
+            const isDirectStream = /\.(m3u8|mp4|webm|mkv)(\?|$)/i.test(decodedUrl);
+            
+            if (isDirectStream) {
+                // Already a direct stream, no iframe extraction needed
+                console.log(`[Proxy] Direct stream detected, no iframe stripping needed`);
+                streamUrl = decodedUrl;
+            } else {
+                // This is an embed page, extract the innermost iframe to strip ads
+                console.log(`[Proxy] Stripping iframes from: ${decodedUrl.substring(0, 60)}...`);
+                streamUrl = await extractIframeSrc(decodedUrl);
+                console.log(`[Proxy] Final URL after stripping: ${streamUrl.substring(0, 60)}...`);
+            }
         } else if (mediaType === 'movie') {
             const tmdbId = segments[3];
             if (!tmdbId) {
