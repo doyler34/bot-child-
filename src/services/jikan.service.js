@@ -63,6 +63,18 @@ class JikanService {
             throw error;
         }
     }
+
+    async getAnimeById(malId) {
+        try {
+            console.log(`[Jikan] Fetching anime details for MAL ID: ${malId}...`);
+            const res = await this.client.get(`/anime/${malId}/full`);
+            console.log(`[Jikan] Anime details fetched for: ${res.data?.data?.title || 'unknown'}`);
+            return res.data?.data || null;
+        } catch (error) {
+            console.error('[Jikan] Get anime by ID error:', error?.response?.status, error?.response?.data || error?.message);
+            throw error;
+        }
+    }
 }
 
 module.exports = new JikanService();

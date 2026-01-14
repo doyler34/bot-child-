@@ -438,6 +438,145 @@ class EmbedBuilderService {
 
         return embed;
     }
+
+    /**
+     * Create detailed anime card from Jikan data
+     */
+    createDetailedAnimeCard(anime) {
+        const embed = new EmbedBuilder()
+            .setColor(config.embed.colors.primary)
+            .setTitle(`🍥 ${anime.title || 'Anime'}`)
+            .setTimestamp();
+
+        // Add large poster
+        if (anime.images?.jpg?.large_image_url) {
+            embed.setImage(anime.images.jpg.large_image_url);
+        } else if (anime.images?.jpg?.image_url) {
+            embed.setImage(anime.images.jpg.image_url);
+        }
+
+        // Add description/synopsis
+        if (anime.synopsis) {
+            const synopsis = anime.synopsis.length > 500 
+                ? anime.synopsis.substring(0, 500) + '...'
+                : anime.synopsis;
+            embed.setDescription(synopsis);
+        }
+
+        const fields = [];
+
+        // Rating (MAL uses 10-point scale)
+        if (anime.score) {
+            const stars = this._getStarRating(anime.score);
+            const scoreText = `${stars} ${anime.score.toFixed(1)}/10`;
+            const scoredBy = anime.scored_by ? `\n(${anime.scored_by.toLocaleString()} users)` : '';
+            fields.push({
+                name: '⭐ Rating',
+                value: scoreText + scoredBy,
+                inline: true
+            });
+        }
+
+        // Status (Airing, Finished, etc.)
+        if (anime.status) {
+            fields.push({
+                name: '📺 Status',
+                value: anime.status,
+                inline: true
+            });
+        }
+
+        // Episodes
+        if (anime.episodes) {
+            fields.push({
+                name: '📚 Episodes',
+                value: anime.episodes.toString(),
+                inline: true
+            });
+        }
+
+        // Aired date
+        if (anime.aired?.from) {
+            const airedDate = new Date(anime.aired.from).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            fields.push({
+                name: '📅 Aired',
+                value: airedDate,
+                inline: true
+            });
+        }
+
+        // Type (TV, Movie, OVA, etc.)
+        if (anime.type) {
+            fields.push({
+                name: '🎬 Type',
+                value: anime.type,
+                inline: true
+            });
+        }
+
+        // Duration per episode
+        if (anime.duration) {
+            fields.push({
+                name: '⏱️ Duration',
+                value: anime.duration,
+                inline: true
+            });
+        }
+
+        // Genres
+        if (anime.genres && anime.genres.length > 0) {
+            const genreNames = anime.genres.map(g => g.name).join(', ');
+            fields.push({
+                name: '🎭 Genres',
+                value: genreNames,
+                inline: false
+            });
+        }
+
+        // Studios
+        if (anime.studios && anime.studios.length > 0) {
+            const studioNames = anime.studios.map(s => s.name).join(', ');
+            fields.push({
+                name: '🎨 Studios',
+                value: studioNames,
+                inline: false
+            });
+        }
+
+        // Rank/Popularity
+        if (anime.rank) {
+            fields.push({
+                name: '🏆 Rank',
+                value: `#${anime.rank}`,
+                inline: true
+            });
+        }
+
+        if (anime.popularity) {
+            fields.push({
+                name: '🔥 Popularity',
+                value: `#${anime.popularity}`,
+                inline: true
+            });
+        }
+
+        if (fields.length > 0) {
+            embed.addFields(fields);
+        }
+
+        // Add MAL link in footer
+        if (anime.mal_id) {
+            embed.setFooter({ 
+                text: `MyAnimeList ID: ${anime.mal_id} • ${config.embed.footer.text}` 
+            });
+        }
+
+        return embed;
+    }
 }
 
 // Export singleton instance

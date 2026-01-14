@@ -7,6 +7,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } 
 const embedBuilder = require('../ui/embedBuilder');
 const tmdbService = require('../services/tmdb.service');
 const vidsrcService = require('../services/vidsrc.service');
+const jikanService = require('../services/jikan.service');
 const messageCleanup = require('../utils/messageCleanup');
 const watchlistService = require('../database/watchlist.service');
 const continueWatchingService = require('../database/continueWatching.service');
@@ -307,17 +308,34 @@ class DetailsHandler {
      */
     async showAnimeDirect(interaction, malId, title) {
         try {
+            // Defer immediately to prevent timeout
+            if (!interaction.deferred && !interaction.replied) {
+                await interaction.deferUpdate();
+            }
+
             if (!malId) {
                 throw new Error('Missing MAL id');
             }
 
+            // Fetch full anime details from Jikan
+            let anime = null;
+            try {
+                anime = await jikanService.getAnimeById(malId);
+            } catch (error) {
+                console.error('Failed to fetch anime details from Jikan:', error);
+                // Continue with basic info if fetch fails
+            }
+
+            // Create detailed embed if we have anime data, otherwise use basic
+            const embed = anime 
+                ? embedBuilder.createDetailedAnimeCard(anime)
+                : embedBuilder.createInfoEmbed(
+                    `🍥 ${title || 'Anime'}`,
+                    'Select a provider to watch.'
+                );
+
             // Default to season 1 episode 1 for link generation
             const streamLinks = await vidsrcService.getAllTVLinksWithAnime(null, 1, 1, { malId });
-
-            const embed = embedBuilder.createInfoEmbed(
-                `🍥 ${title || 'Anime'}`,
-                'Select a provider to watch.'
-            );
 
             const streamButtons = streamLinks.map(link =>
                 new ButtonBuilder()
@@ -328,7 +346,7 @@ class DetailsHandler {
             );
 
             const backButton = new ButtonBuilder()
-                .setCustomId('back_main')
+                .setCustomId('back_to_results')
                 .setLabel('Back')
                 .setStyle(ButtonStyle.Secondary)
                 .setEmoji('⬅️');
@@ -339,15 +357,16 @@ class DetailsHandler {
             }
             rows.push(new ActionRowBuilder().addComponents(backButton));
 
-            const message = interaction.replied || interaction.deferred
-                ? await interaction.editReply({ embeds: [embed], components: rows })
-                : await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
+            const message = await interaction.editReply({ 
+                embeds: [embed], 
+                components: rows 
+            });
 
             messageCleanup.scheduleDelete(message);
         } catch (error) {
             console.error('Error showing anime direct links:', error);
             const payload = {
-                embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime links.')],
+                embeds: [embedBuilder.createErrorEmbed('Error', 'Failed to load anime details.')],
                 components: []
             };
             if (interaction.replied || interaction.deferred) {
