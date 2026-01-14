@@ -6,6 +6,8 @@
 
 const axios = require('axios');
 const keys = require('../config/keys');
+const tmdbService = require('./tmdb.service');
+const aniListService = require('./anilist.service');
 
 class VidSrcService {
     constructor() {
@@ -25,6 +27,15 @@ class VidSrcService {
                 slug: 'vidsrcme',
                 baseUrl: 'https://vidsrc.me/embed',
                 emoji: '🎥'
+            },
+            // Anime-only provider (MAL id)
+            {
+                name: 'AnimEmbed',
+                slug: 'animembed',
+                baseUrl: 'http://animembed.com/embed',
+                emoji: '🍥',
+                types: ['tv'],
+                mode: 'mal'
             }
         ];
 
@@ -271,6 +282,45 @@ class VidSrcService {
                 url: this._buildProviderUrl(provider, `/tv/${tmdbId}/${season}/${episode}`),
                 emoji: provider.emoji
             }));
+    }
+
+    /**
+     * Generate TV links plus anime providers (uses AniList->MAL mapping)
+     * @param {number} tmdbId
+     * @param {number} season
+     * @param {number} episode
+     * @returns {Promise<Array>}
+     */
+    async getAllTVLinksWithAnime(tmdbId, season, episode) {
+        const baseLinks = this.getAllTVLinks(tmdbId, season, episode);
+
+        // Find anime-capable providers
+        const animeProviders = this.providers.filter(p => p.types && p.types.includes('tv') && p.mode === 'mal');
+        if (animeProviders.length === 0) {
+            return baseLinks;
+        }
+
+        try {
+            const show = await tmdbService.getTVShowDetails(tmdbId);
+            const title = show?.name;
+            const year = show?.first_air_date ? show.first_air_date.split('-')[0] : undefined;
+            const { malId } = await aniListService.findIds(title, year);
+
+            if (!malId) {
+                return baseLinks;
+            }
+
+            const animeLinks = animeProviders.map(provider => ({
+                name: provider.name,
+                url: `${provider.baseUrl.replace(/\/$/, '')}/${malId}/${episode}`,
+                emoji: provider.emoji
+            }));
+
+            return [...baseLinks, ...animeLinks];
+        } catch (err) {
+            console.warn('Failed to load anime provider links:', err.message);
+            return baseLinks;
+        }
     }
 
     /**
