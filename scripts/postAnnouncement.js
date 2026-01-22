@@ -11,29 +11,25 @@ const { Client, GatewayIntentBits } = require('discord.js');
 
 const DEFAULT_CHANNEL_ID = '1377465202693378048'; // provided by user
 const DEFAULT_MESSAGE = [
-    '**🎉 Update – January 14, 2026**',
+    '🎬 Welcome to ZipxMovies!',
     '',
-    '**✨ What\'s New**',
-    '- 🍥 **Anime Support (BETA)** – Browse popular/trending anime, search by title, and stream episodes!',
-    '- 📖 **`/help` Command** – Get detailed usage instructions and disclaimers.',
-    '- 🛡️ **Proxy for Ad Prevention** – Links route through our proxy to strip iframe ads (most ads removed, some may remain).',
-    '- 🔄 **Improved Navigation** – Better back buttons, season selectors, and menu flow.',
+    'What this bot does:',
+    '- Browse & stream movies, TV shows, and anime.',
+    '- Commands: /watch (main menu), /search (quick lookup), /share (send a title to someone).',
     '',
-    '**🎬 How to Use**',
-    '- Run `/watch` to browse Movies, TV Shows, or Anime.',
-    '- Run `/help` for detailed guidance and disclaimers.',
-    '- Use navigation buttons to browse; if a menu expires, just run `/watch` again.',
-    '- For anime: Select from Popular/Trending or Search, pick your season/episode, then choose a provider.',
+    'How to use:',
+    '1) Run /watch -> pick Search/Movies/TV/Anime.',
+    '2) Select a title; for TV/anime choose season/episode.',
+    '3) Click a provider button to start streaming.',
     '',
-    '**⚠️ Important Notes**',
-    '- **Anime is in BETA** – Some features may not work perfectly. Report issues if you find them!',
-    '- **Use Ad Blockers** – While our proxy helps, ad blockers (uBlock Origin, etc.) are still recommended.',
-    '- **Proxy Info** – Links route through a lightweight proxy to unwrap provider iframes and reduce ads.',
-    '- **Provider Tips** – Try `VidSrc` or `Cinetaro` first; if one fails, try another provider.',
+    'Tips:',
+    '- Add titles to your watchlist via the ⭐ button; open it from /watch -> My Watchlist.',
+    '- Continue Watching shows your recent progress.',
+    '- If a menu expires, just run /watch again.',
+    '- Try another provider button if one fails.',
+    '- Use an ad blocker for the best experience.',
     '',
-    '**💬 Feedback & Support**',
-    '- Report bugs or request features in this channel.',
-    '- Enjoy streaming! 🍿'
+    'Enjoy the show! 🍿'
 ].join('\n');
 
 const token = process.env.DISCORD_TOKEN;
