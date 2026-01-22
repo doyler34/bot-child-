@@ -43,13 +43,14 @@ module.exports = {
                 .setFooter({ text: 'ZipxMovies • Powered by TMDB & Jikan' })
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed] });
+            // Explicitly non-ephemeral
+            await interaction.reply({ embeds: [embed], ephemeral: false });
         } catch (error) {
             console.error('Help command error:', error);
             if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: '❌ Failed to load help. Please try again.' });
+                await interaction.followUp({ content: '❌ Failed to load help. Please try again.', ephemeral: false });
             } else {
-                await interaction.reply({ content: '❌ Failed to load help. Please try again.' });
+                await interaction.reply({ content: '❌ Failed to load help. Please try again.', ephemeral: false });
             }
         }
     }
