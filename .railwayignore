@@ -1,0 +1,35 @@
+# Railway ignore file - exclude these from deployment
+
+# Node modules
+node_modules/
+
+# Environment files (will be set in Railway dashboard)
+.env
+.env.local
+
+# Git files
+.git/
+.gitignore
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (optional, keep if you want README deployed)
+# *.md
+
+# Local database (will be created fresh on Railway)
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Cache
+*.cache

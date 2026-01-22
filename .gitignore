@@ -1,0 +1,53 @@
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnp.*
+.pnp.js
+.pnp.cjs
+
+# Env/config
+.env
+.env.local
+.env.development*
+.env.production*
+.env.test*
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Data/output
+data/
+coverage/
+dist/
+build/
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Cache
+*.cache
+
+# Database
+data/
+*.db
+*.db-shm
+*.db-wal

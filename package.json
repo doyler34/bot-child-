@@ -1,0 +1,30 @@
+{
+  "name": "discord-streaming-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for browsing and streaming movies & TV shows",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "node src/bot.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "streaming",
+    "movies",
+    "tv"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.5",
+    "better-sqlite3": "^12.6.0",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "sqlite3": "^5.1.7"
+  }
+}
